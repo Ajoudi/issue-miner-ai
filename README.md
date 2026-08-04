@@ -6,22 +6,103 @@ open-source repos** and uses an LLM (Google Gemini) to generate structured
 approach, likely files, and step-by-step implementation. Runs entirely on
 GitHub Actions (daily) and can publish to GitHub Pages at $0.
 
-## How it picks issues (the funnel)
+## The flow, end to end
 
-Big repos have thousands of open issues — we never read them all. Three layers
-narrow ~1,000s down to ~10 tractable issues per repo:
+Big repos have thousands of open issues — we never read them all. The pipeline
+narrows thousands down to a handful of **live, wanted, doable** issues per repo,
+then writes an AI plan for each. Here is exactly what happens on every run.
 
-1. **Server-side query** (`src/fetchers.py`) — GitHub Search API filters to
-   `open`, **unassigned**, **no linked PR**, label-tiered, sorted by reactions.
-   Most repos here barely use `good first issue`, so we fall back to `bug`.
-2. **Local heuristic score** (`src/scoring.py`) — ranks by community demand,
-   a "sweet spot" of discussion, filled-in bug templates, and recency; drops
-   excluded labels. No LLM cost.
-3. **LLM difficulty judgement** (`src/ai_engine.py`) — only the top N per repo
-   go to Gemini, which outputs a `difficulty` rating. The site sorts easy-first.
+### 1. Which repos
 
-Results **accumulate** in `data/*.json`; unchanged issues are skipped on later
-runs, so the library grows without re-doing work.
+The target repos live in `config.yml` under `repos:` — currently:
+
+| Repo | Domain |
+|---|---|
+| `ollama/ollama` | Local LLM runner |
+| `langfuse/langfuse` | LLM observability & evals |
+| `duckdb/duckdb` | Analytical in-process DB |
+| `ClickHouse/ClickHouse` | High-performance DB |
+
+Add/remove repos there — no code change. Each repo can override any setting.
+
+### 2. Fetch candidates — GitHub does the coarse filtering (`src/fetchers.py`)
+
+For each repo we ask the **GitHub Search API** for a candidate pool. The query
+*always* requires an issue to be:
+
+- `is:issue is:open` — open issues only (pull requests excluded)
+- `no:assignee` — nobody is already working on it
+- `-linked:pr` — no fix is already in progress
+- `updated:>=<date>` — **active within `max_inactive_days` (default 180)** so
+  stale/abandoned issues never even get fetched (based on *last activity*, not
+  when it was opened — an old-but-active issue still counts as live)
+- a **label tier** — tried in order until the pool is full. These repos barely
+  use `good first issue`, so most fall back to `label:bug`, then no filter.
+
+Results come back sorted by total reactions. Pool size: `candidate_pool_size` (40).
+
+### 3. Rank by "need" — cheap heuristics, no LLM (`src/scoring.py`)
+
+Each candidate gets a **need score**. The score is driven by community demand,
+then adjusted so structurally un-solvable issues sink. The top
+`triage_pool_size` (15) by score advance. Roughly:
+
+**Demand (raises the score):**
+- 👍 reactions — `+2.0` each (capped at 25)
+- total reactions — `+0.8` each (capped at 40)
+- discussion in a **1–15 comment sweet spot** — `+5` (engaged, not a flame war)
+
+**Feasibility hints (nudge, so the triage stage isn't crowded):**
+- needs specific hardware/OS/GPU (`M5`, `CUDA`, `Metal`, …) — `−8`
+- tracking issue / RFC / roadmap / epic — `−8`
+- open-ended feature request in the title — `−4`
+- thin body (< 80 chars) — `−4`; huge thread (> 30 comments) — `−4`
+- contains a reproduction / stack trace — `+3`; a code block — `+2`
+- `good first issue` / `help wanted` — `+6`; `bug` — `+2`
+- brand-new (< 2 days, unvetted) — `−2`
+
+So **"need" = mostly community demand, tilted toward issues that are also
+concrete and self-contained.** Excluded labels (`wontfix`, `duplicate`,
+`question`, …) drop an issue entirely.
+
+### 4. Gemini, in two tiers (`src/ai_engine.py`)
+
+Only the ranked shortlist reaches an LLM, and in two stages so the expensive
+work is spent only on issues worth it:
+
+- **Tier 1 — Triage** (`gemini-2.5-flash-lite`, cheap): for the top ~15 by need,
+  a small structured call judges **feasibility** — `feasibility` (high/med/low),
+  `self_contained`, `needs_special_environment`, `blockers`, `estimated_effort`,
+  `worth_solving`. Issues that aren't feasible + self-contained + free of special
+  -environment needs are **gated out here**. (This is where e.g. an "only
+  reproduces on an Apple M5" bug gets dropped despite high demand.)
+
+- **Tier 2 — Blueprint** (`gemini-2.5-flash`, better): the up-to-`blueprint_top_n`
+  (8) **highest-need survivors** get a full plan — `problem_summary`,
+  `root_cause_hypothesis`, `suggested_approach`, `likely_areas`, `prerequisites`,
+  ordered `implementation_steps`, `confidence`.
+
+Global caps (`max_triage_calls_per_run`, `max_blueprint_calls_per_run`) and
+graceful stop-on-quota mean a run can never blow the Gemini free tier.
+
+### 5. Where it appears
+
+- **Accumulated data** → `data/<owner>__<repo>.json`. Every run **upserts** and
+  **skips unchanged issues** (re-run only if the issue changed or is older than
+  `reprocess_after_days`), so the library grows without redoing work. In CI this
+  is **committed back to `main`** by the workflow.
+- **The website** → `src/generator.py` renders all stored blueprints into
+  `public/index.html`, **sorted by need (highest first)**, with feasibility /
+  effort / self-contained badges, blockers, and a "How to solve it" section per
+  card. Filter by repo; "Copy prompt" per card.
+  - **Private repo (now):** open `public/index.html` locally
+    (`python main.py --site-only` rebuilds it from `data/`).
+  - **Public + Pages enabled:** it goes live at
+    `https://<user>.github.io/<repo>/`, refreshed daily (see *Going live* below).
+
+**One line:** live issues (≤180d) → ranked by community need → feasibility-gated
+by cheap AI → the best get a full AI fix-plan → committed to `data/` and rendered
+to a website.
 
 ## Prompt-injection safety
 
@@ -37,7 +118,8 @@ Issue text is untrusted user input. Defenses:
   *and* AI output) is HTML-escaped and the page has a strict Content-Security
   -Policy, so even a fully-injected blueprint renders as inert text. This is the
   key control: we assume the AI output itself is untrusted.
-- Issues containing injection phrasing are **flagged** and forced to low confidence.
+- Issues containing injection phrasing are **flagged**, forced to `feasibility=low`
+  (so triage gates them out), and marked "⚠ review" if they ever render.
 
 ## Configure
 
