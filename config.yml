@@ -1,0 +1,45 @@
+# IssueMiner AI — target repositories & mining strategy.
+# Edit this file to steer what gets mined. No code changes required.
+
+settings:
+  model: "gemini-2.5-flash"        # Gemini model used for synthesis
+  candidate_pool_size: 40          # issues to fetch + score per repo before picking the top N
+  max_issues_per_repo: 10          # hard cap on issues sent to the LLM per repo per run
+  issue_body_char_limit: 4000      # truncate issue bodies before the LLM (cost + injection control)
+  max_comments_per_issue: 3        # include at most N comments as extra context
+  reprocess_after_days: 14         # only re-run the LLM on an issue if it changed or is older than this
+
+# Each repo defines a tiered label strategy. Tiers are tried in order until we
+# have `candidate_pool_size` candidates. "" means "no label filter" (pure
+# bug/reaction fallback for lightly-labeled repos). Discovered from live data:
+# these repos barely use good-first-issue / help-wanted, so we lean on `bug`.
+repos:
+  - name: "ollama/ollama"
+    label_tiers:
+      - 'label:"good first issue"'
+      - 'label:"help wanted"'
+      - 'label:bug'
+  - name: "langfuse/langfuse"
+    label_tiers:
+      - 'label:bug'
+      - ''
+  - name: "duckdb/duckdb"
+    label_tiers:
+      - 'label:bug'
+      - ''
+  - name: "ClickHouse/ClickHouse"
+    label_tiers:
+      - 'label:bug'
+      - ''
+
+# Issues carrying ANY of these labels are always skipped (untractable / unwanted).
+exclude_labels:
+  - "wontfix"
+  - "duplicate"
+  - "invalid"
+  - "question"
+  - "needs triage"
+  - "blocked"
+  - "upstream"
+  - "stale"
+  - "discussion"
