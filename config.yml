@@ -6,6 +6,11 @@ settings:
   triage_model: "gemini-2.5-flash-lite"   # Tier 1: fast/cheap feasibility gate
   blueprint_model: "gemini-2.5-flash"     # Tier 2: full "how to solve it" blueprint
 
+  # Recency: skip issues with no activity in this many days (server-side filter
+  # on last-updated, not creation — an old-but-active issue still counts as live).
+  # Per-repo overridable. 180 = drop anything untouched for 6 months.
+  max_inactive_days: 180
+
   # Funnel widths (per repo).
   candidate_pool_size: 40    # issues fetched from GitHub, then heuristically ranked by NEED
   triage_pool_size: 15       # top-by-need candidates sent to the cheap triage model

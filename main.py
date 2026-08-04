@@ -11,6 +11,7 @@ Run locally:
 from __future__ import annotations
 
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import yaml
@@ -25,6 +26,14 @@ def load_config() -> dict:
     return yaml.safe_load(CONFIG_PATH.read_text())
 
 
+def _updated_after(repo_cfg: dict, s: dict) -> str | None:
+    """YYYY-MM-DD cutoff for last activity (per-repo override, else global)."""
+    days = repo_cfg.get("max_inactive_days", s.get("max_inactive_days"))
+    if not days:
+        return None
+    return (datetime.now(timezone.utc) - timedelta(days=int(days))).strftime("%Y-%m-%d")
+
+
 class Budget:
     """Global per-run call caps — quota can't be blown even if config is wrong."""
 
@@ -37,7 +46,9 @@ def _process_repo(repo_cfg: dict, s: dict, exclude: list[str], budget: Budget) -
     repo = repo_cfg["name"]
     print(f"\n=== {repo} ===")
 
-    candidates = fetchers.fetch_candidates(repo, repo_cfg["label_tiers"], s["candidate_pool_size"])
+    candidates = fetchers.fetch_candidates(
+        repo, repo_cfg["label_tiers"], s["candidate_pool_size"], _updated_after(repo_cfg, s)
+    )
     shortlist = scoring.rank(candidates, exclude, s["triage_pool_size"])
     print(f"  ranked {len(shortlist)}/{len(candidates)} candidates by need")
 
@@ -92,7 +103,9 @@ def run(no_ai: bool = False) -> None:
         for repo_cfg in cfg["repos"]:
             repo = repo_cfg["name"]
             print(f"\n=== {repo} ===")
-            candidates = fetchers.fetch_candidates(repo, repo_cfg["label_tiers"], s["candidate_pool_size"])
+            candidates = fetchers.fetch_candidates(
+                repo, repo_cfg["label_tiers"], s["candidate_pool_size"], _updated_after(repo_cfg, s)
+            )
             for i in scoring.rank(candidates, exclude, s["triage_pool_size"]):
                 print(f"    [{i['_score']:>5}] #{i['number']} {i['title'][:70]}")
         return

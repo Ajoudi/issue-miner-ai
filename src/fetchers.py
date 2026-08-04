@@ -63,19 +63,23 @@ def _normalize(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def fetch_candidates(repo: str, label_tiers: list[str], pool_size: int) -> list[dict[str, Any]]:
+def fetch_candidates(
+    repo: str, label_tiers: list[str], pool_size: int, updated_after: str | None = None
+) -> list[dict[str, Any]]:
     """Fetch a candidate pool for `repo`, trying each label tier until full.
 
-    Base query always requires: open issue, unassigned, no linked PR. Sorted by
-    total reactions descending so the most community-validated issues come first.
+    Base query always requires: open issue, unassigned, no linked PR, and (if
+    `updated_after` is given, as YYYY-MM-DD) last activity on/after that date.
+    Sorted by total reactions descending so the most-wanted issues come first.
     """
     session = _session()
     seen: dict[int, dict[str, Any]] = {}
+    recency = f"updated:>={updated_after}" if updated_after else ""
 
     for tier in label_tiers:
         if len(seen) >= pool_size:
             break
-        q = f"repo:{repo} is:issue is:open no:assignee -linked:pr {tier}".strip()
+        q = f"repo:{repo} is:issue is:open no:assignee -linked:pr {recency} {tier}".strip()
         params = {"q": q, "sort": "reactions", "order": "desc", "per_page": min(pool_size, 100)}
         resp = _get(session, SEARCH_URL, params)
         if resp.status_code != 200:
