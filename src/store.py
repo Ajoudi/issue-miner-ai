@@ -44,6 +44,21 @@ def upsert(store: dict[str, Any], blueprint: dict[str, Any]) -> None:
     store["issues"][str(blueprint["number"])] = blueprint
 
 
+def prune_resolved(store: dict[str, Any], repo: str, check_state) -> int:
+    """Mark stored issues that are no longer open as resolved (hidden from the
+    site, never re-analyzed). `check_state(repo, number) -> 'open'|'closed'|None`.
+    Returns the count newly marked resolved."""
+    newly = 0
+    for num, rec in store["issues"].items():
+        if rec.get("resolved"):
+            continue
+        if check_state(repo, int(num)) == "closed":
+            rec["resolved"] = True
+            rec["resolved_at"] = datetime.now(timezone.utc).isoformat()
+            newly += 1
+    return newly
+
+
 def save(store: dict[str, Any]) -> None:
     DATA_DIR.mkdir(exist_ok=True)
     store["generated_at"] = datetime.now(timezone.utc).isoformat()

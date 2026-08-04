@@ -95,6 +95,19 @@ def fetch_candidates(
     return list(seen.values())
 
 
+def get_issue_state(repo: str, number: int) -> str | None:
+    """Return 'open' / 'closed' for a single issue, or None on error (leave as-is).
+    A 404 (deleted/transferred) is treated as 'closed'. Uses the core REST API
+    (5000 req/hr authenticated) — no Gemini cost."""
+    session = _session()
+    resp = _get(session, f"{API_ROOT}/repos/{repo}/issues/{number}")
+    if resp.status_code == 200:
+        return resp.json().get("state")
+    if resp.status_code == 404:
+        return "closed"
+    return None
+
+
 def fetch_comments(repo: str, number: int, limit: int) -> list[str]:
     """Fetch up to `limit` comment bodies for a single issue (called only for
     the small set of issues we actually send to the LLM)."""

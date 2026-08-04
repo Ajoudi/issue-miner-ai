@@ -88,7 +88,8 @@ def _repo_filters(blueprints: list[dict[str, Any]]) -> str:
 
 
 def generate(blueprints: list[dict[str, Any]]) -> Path:
-    # Highest need first (feasibility already gated these in).
+    # Hide issues that have since been closed/fixed; highest need first.
+    blueprints = [b for b in blueprints if not b.get("resolved")]
     blueprints = sorted(blueprints, key=lambda b: -float(b.get("need_score") or 0))
     updated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     cards = "".join(_card(b) for b in blueprints)

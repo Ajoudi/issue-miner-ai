@@ -21,6 +21,7 @@ settings:
   triage_body_char_limit: 2000  # triage stage body truncation (cheaper)
   max_comments_per_issue: 3
   reprocess_after_days: 14      # re-run only if the issue changed or is older than this
+  prune_closed_issues: true     # mark now-closed issues resolved + hide them from the site
 
   # Global safety valves — quota can't be blown even if something misbehaves.
   max_triage_calls_per_run: 60

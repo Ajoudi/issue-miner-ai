@@ -53,6 +53,13 @@ def _process_repo(repo_cfg: dict, s: dict, exclude: list[str], budget: Budget) -
     print(f"  ranked {len(shortlist)}/{len(candidates)} candidates by need")
 
     st = store.load(repo)
+
+    # Prune issues that have since been closed/fixed (no Gemini cost).
+    if s.get("prune_closed_issues"):
+        newly = store.prune_resolved(st, repo, fetchers.get_issue_state)
+        if newly:
+            print(f"  pruned {newly} resolved issue(s)")
+
     feasible: list[tuple[dict, dict]] = []  # (issue, triage) awaiting blueprint
     skipped = 0
 
