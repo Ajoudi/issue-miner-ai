@@ -3,8 +3,11 @@
 
 settings:
   # Two-tier LLM: a cheap model gates feasibility, a better model writes blueprints.
-  triage_model: "gemini-2.5-flash-lite"   # Tier 1: fast/cheap feasibility gate
-  blueprint_model: "gemini-2.5-flash"     # Tier 2: full "how to solve it" blueprint
+  # Use the "-latest" aliases, not pinned versions — pinned models get retired
+  # (gemini-2.5-flash-lite started returning 404 "no longer available"), and the
+  # 2.0 family has no free tier (limit: 0). Aliases always map to a current model.
+  triage_model: "gemini-flash-lite-latest"   # Tier 1: fast/cheap feasibility gate
+  blueprint_model: "gemini-flash-latest"     # Tier 2: full "how to solve it" blueprint
 
   # Recency: skip issues with no activity in this many days (server-side filter
   # on last-updated, not creation — an old-but-active issue still counts as live).
