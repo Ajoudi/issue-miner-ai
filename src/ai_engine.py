@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from enum import Enum
 from typing import Any
 
@@ -95,7 +96,10 @@ to a mergeable PR. Return ONLY the structured JSON."""
 INJECTION_MARKERS = re.compile(
     r"(ignore (all |previous |above )?instructions|system prompt|you are now|disregard)", re.I
 )
-QUOTA_MARKERS = re.compile(r"(429|resource_exhausted|quota|rate limit)", re.I)
+# Daily free-tier exhaustion — retrying today won't help, so stop cleanly.
+QUOTA_MARKERS = re.compile(r"(429|resource_exhausted|quota)", re.I)
+# Transient server-side blips — worth retrying with backoff.
+TRANSIENT_MARKERS = re.compile(r"(503|500|unavailable|overloaded|high demand|deadline)", re.I)
 
 
 def _sanitize(text: str, limit: int) -> str:
@@ -133,10 +137,13 @@ def _client():
     return genai.Client(api_key=api_key)
 
 
-def _generate(client, model: str, system: str, prompt: str, schema, max_tokens: int):
-    """One structured call with a single retry; maps quota errors to QuotaExceeded."""
-    last_exc: Exception | None = None
-    for attempt in range(2):
+def _generate(client, model: str, system: str, prompt: str, schema, max_tokens: int, attempts: int = 4):
+    """One structured call with exponential backoff.
+
+    - 429/quota -> QuotaExceeded (daily free tier; stop the run cleanly).
+    - 503/500/overloaded and empty parses -> retry with backoff (transient).
+    """
+    for attempt in range(attempts):
         try:
             resp = client.models.generate_content(
                 model=model,
@@ -151,13 +158,18 @@ def _generate(client, model: str, system: str, prompt: str, schema, max_tokens: 
             )
             if resp.parsed:
                 return resp.parsed
+            reason = "empty/unparseable response"
         except Exception as e:  # noqa: BLE001
-            last_exc = e
-            if QUOTA_MARKERS.search(str(e)):
-                raise QuotaExceeded(str(e)) from e
-            print(f"    [ai] attempt {attempt + 1} failed: {str(e)[:140]}")
-    if last_exc:
-        print(f"    [ai] giving up: {str(last_exc)[:140]}")
+            msg = str(e)
+            if QUOTA_MARKERS.search(msg):
+                raise QuotaExceeded(msg) from e
+            reason = msg[:140]
+        if attempt < attempts - 1:
+            wait = 2 ** attempt  # 1s, 2s, 4s
+            print(f"    [ai] attempt {attempt + 1}/{attempts} failed ({reason}); retry in {wait}s")
+            time.sleep(wait)
+        else:
+            print(f"    [ai] giving up after {attempts} attempts: {reason}")
     return None
 
 

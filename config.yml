@@ -16,12 +16,12 @@ settings:
 
   # Funnel widths (per repo).
   candidate_pool_size: 40    # issues fetched from GitHub, then heuristically ranked by NEED
-  triage_pool_size: 15       # top-by-need candidates sent to the cheap triage model
-  blueprint_top_n: 8         # feasible survivors (highest need) that get a full blueprint
+  triage_pool_size: 10       # top-by-need candidates sent to the cheap triage model
+  blueprint_top_n: 5         # feasible survivors (highest need) that get a full blueprint
 
   # Input hardening / cost control.
   issue_body_char_limit: 4000   # blueprint stage body truncation
-  triage_body_char_limit: 2000  # triage stage body truncation (cheaper)
+  triage_body_char_limit: 1200  # triage stage body truncation (cheaper — fits more in free tier)
   max_comments_per_issue: 3
   reprocess_after_days: 14      # re-run only if the issue changed or is older than this
   prune_closed_issues: true     # mark now-closed issues resolved + hide them from the site
