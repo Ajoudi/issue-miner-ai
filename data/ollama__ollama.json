@@ -1,5 +1,48 @@
 {
   "repo": "ollama/ollama",
-  "generated_at": "2026-08-05T01:48:28.588960+00:00",
-  "issues": {}
+  "generated_at": "2026-08-05T05:59:31.463169+00:00",
+  "issues": {
+    "14233": {
+      "repo": "ollama/ollama",
+      "number": 14233,
+      "title": "Released binaries have High severity CVEs due to Go version 1.24.1",
+      "source_url": "https://github.com/ollama/ollama/issues/14233",
+      "labels": [
+        "bug"
+      ],
+      "reactions": 7,
+      "updated_at": "2026-02-25T02:34:59Z",
+      "need_score": 31.6,
+      "feasibility": "high",
+      "feasibility_reason": "The issue points out that released binaries contain CVEs because the Go toolchain/standard library version used in the build is outdated, and explicitly suggests upgrading the Go version in the Dockerfile and go.mod. Bumping the Go version is a straightforward and self-contained configuration/dependency update.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "under_1h",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Released Ollama binaries contain high and critical severity vulnerabilities in standard library packages (such as crypto/tls, os, net/url, and archive/zip) because they are built using an outdated Go compiler toolchain (Go 1.24.1).",
+      "root_cause_hypothesis": "The build configuration files, including go.mod, Dockerfile, build scripts, and GitHub Actions workflows, specify or pin an older Go version (Go 1.24.1) that contains unpatched Go standard library vulnerabilities.",
+      "suggested_approach": "Upgrade the Go toolchain version across the codebase (in go.mod, Dockerfiles, and CI workflows) to a patched Go release (e.g., Go 1.24.13, 1.25.7, or 1.26.0+), recompile the binary, and verify with govulncheck that standard library vulnerabilities are resolved.",
+      "likely_areas": [
+        "go.mod",
+        "Dockerfile",
+        ".github/workflows/",
+        "scripts/"
+      ],
+      "prerequisites": [
+        "Go toolchain installed",
+        "govulncheck utility installed (go install golang.org/x/vuln/cmd/govulncheck@latest)"
+      ],
+      "implementation_steps": [
+        "Update the go directive and toolchain directive in go.mod to the desired non-vulnerable Go version.",
+        "Update Dockerfile and related container build scripts to use the corresponding Go base image version.",
+        "Audit .github/workflows/ for actions/setup-go or hardcoded Go version strings and update them to match the new version.",
+        "Run go mod tidy and execute the full test suite to ensure compatibility with the updated Go version.",
+        "Build the Ollama binary and run govulncheck -mode=binary on the produced artifact to confirm all reported Go standard library CVEs are resolved."
+      ],
+      "confidence": "high",
+      "processed_at": "2026-08-05T05:59:31.463069+00:00"
+    }
+  }
 }
