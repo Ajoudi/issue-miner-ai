@@ -1,5 +1,88 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-08-05T06:02:12.267323+00:00",
-  "issues": {}
+  "generated_at": "2026-08-06T01:50:38.185691+00:00",
+  "issues": {
+    "15280": {
+      "repo": "langfuse/langfuse",
+      "number": 15280,
+      "title": "bug(sdk-python): empty-string credentials silently bypass auth-disable guard; malformed media reference string crashes with raw unpack error",
+      "source_url": "https://github.com/langfuse/langfuse/issues/15280",
+      "labels": [],
+      "reactions": 1,
+      "updated_at": "2026-07-25T17:22:30Z",
+      "need_score": 12.8,
+      "feasibility": "high",
+      "feasibility_reason": "The issue clearly identifies a straightforward input validation bug in Python where empty strings should be treated the same as None or missing keys, which is a localized change in the SDK initialization code.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "under_1h",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "The Python SDK client initializes fully instead of disabling itself when public or secret keys are empty strings, and LangfuseMedia.parse_reference_string raises an unhandled unpack ValueError on malformed media reference strings lacking an '=' separator. Additionally, the low-level HTTP client lacks unit test coverage.",
+      "root_cause_hypothesis": "1. Client initialization in Langfuse.__init__ relies on explicit 'is None' checks for credentials rather than truthiness/falsiness checks, allowing empty string credentials (e.g., from environment variables) to bypass the disabled guard.\n2. LangfuseMedia.parse_reference_string assumes every pipe-separated segment contains an '=' character without checking before unpacking split results.\n3. LangfuseClient in langfuse/_utils/request.py lacks dedicated unit tests despite pytest-httpserver being available in dev dependencies.",
+      "suggested_approach": "Update credential validation checks in client initialization to inspect falsiness or string contents rather than strictly checking for None. Modify media reference string parsing to safely extract key-value pairs by checking for '=' before unpacking or skipping invalid pairs so standard validation logic handles missing required attributes cleanly. Add HTTP client unit tests utilizing pytest-httpserver.",
+      "likely_areas": [
+        "langfuse/client.py",
+        "langfuse/media.py",
+        "langfuse/_utils/request.py",
+        "tests/"
+      ],
+      "prerequisites": [
+        "Python development environment set up with poetry or pip",
+        "Existing test suite passing using pytest"
+      ],
+      "implementation_steps": [
+        "Modify Langfuse.__init__ credential checks in langfuse/client.py (or equivalent entrypoint) from 'if public_key is None' to check falsiness 'if not public_key:' (and similarly for secret_key).",
+        "Update LangfuseMedia.parse_reference_string in langfuse/media.py to safely split key-value pairs (e.g., checking 'if \"=\" in pair:' or handling split count safely before unpacking).",
+        "Add unit tests in tests verifying that empty-string credentials (via env vars and constructor parameters) properly trigger client-disabled mode / NoOpTracer.",
+        "Add unit tests verifying that malformed media reference strings (e.g. missing '=' in segments) raise the expected clean ValueError rather than raw unpacking errors.",
+        "Add unit tests for LangfuseClient in tests/ utilizing pytest-httpserver to cover batch posting, JSON response parsing, non-2xx statuses, and timeout handling."
+      ],
+      "confidence": "high",
+      "processed_at": "2026-08-06T01:49:49.214865+00:00"
+    },
+    "15751": {
+      "repo": "langfuse/langfuse",
+      "number": 15751,
+      "title": "Local dev setup is not covered by any agent skill, and CONTRIBUTING's ClickHouse install path is broken",
+      "source_url": "https://github.com/langfuse/langfuse/issues/15751",
+      "labels": [
+        "agentic-workflows",
+        "feat-onboarding"
+      ],
+      "reactions": 1,
+      "updated_at": "2026-08-04T19:11:27Z",
+      "need_score": 10.8,
+      "feasibility": "high",
+      "feasibility_reason": "The issue clearly identifies a documentation bug in CONTRIBUTING.md regarding the ClickHouse installation instructions and suggests using a docker-based approach already present in the codebase. This is straightforward to update.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "under_1h",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "ClickHouse installation instructions in CONTRIBUTING.md are broken/outdated on macOS, and there is no agent skill covering local dev setup from zero to running stack.",
+      "root_cause_hypothesis": "Homebrew cask changes for ClickHouse broke the manual binary installation step in CONTRIBUTING.md, while repo environment bootstrap steps (Docker containers, environment files, CLI tools, database migrations, and seeding sequence) lack a dedicated skill in .agents/skills/.",
+      "suggested_approach": "Update CONTRIBUTING.md to use the Docker exec shim for ClickHouse, introduce a scripts/preflight.sh script to validate prerequisites, and add a setup-local-dev skill under .agents/skills/ to guide agentic workflows through local environment setup.",
+      "likely_areas": [
+        "CONTRIBUTING.md",
+        ".agents/skills/",
+        "scripts/"
+      ],
+      "prerequisites": [
+        "Local Docker environment running",
+        "Node.js and pnpm installed",
+        "Familiarity with the agent skill structure in .agents/skills/"
+      ],
+      "implementation_steps": [
+        "Update CONTRIBUTING.md with the Docker exec clickhouse client wrapper/shim instead of the deprecated Homebrew cask instructions.",
+        "Create a scripts/preflight.sh script that checks for Node.js, pnpm, Docker daemon status, required CLI binaries, and port availability.",
+        "Create a new agent skill under .agents/skills/ (e.g., setup-local-dev) documenting the precise sequence for environment bootstrap (.env setup, pnpm install, Docker infra spin-up, migration execution, and seeding).",
+        "Validate the preflight script and setup procedure by running an end-to-end local bootstrap test."
+      ],
+      "confidence": "high",
+      "processed_at": "2026-08-06T01:50:38.185619+00:00"
+    }
+  }
 }
