@@ -1,6 +1,6 @@
 {
   "repo": "ollama/ollama",
-  "generated_at": "2026-08-06T01:48:53.111862+00:00",
+  "generated_at": "2026-08-07T02:12:37.778179+00:00",
   "issues": {
     "14233": {
       "repo": "ollama/ollama",
@@ -43,6 +43,46 @@
       ],
       "confidence": "high",
       "processed_at": "2026-08-05T05:59:31.463069+00:00"
+    },
+    "15669": {
+      "repo": "ollama/ollama",
+      "number": 15669,
+      "title": "Both `qwen3.5:35b-a3b-coding-bf16` and `qwen3.6:35b-a3b-coding-bf16` are labeled as non-MLX, yet they are meant for macOS only",
+      "source_url": "https://github.com/ollama/ollama/issues/15669",
+      "labels": [
+        "bug"
+      ],
+      "reactions": 16,
+      "updated_at": "2026-06-09T04:42:30Z",
+      "need_score": 54.8,
+      "feasibility": "high",
+      "feasibility_reason": "The issue describes a simple metadata labeling bug where specific models are incorrectly marked or restricted, resulting in an incorrect error message on non-macOS platforms. This likely involves updating model definitions or registry entries in the backend configuration.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "under_1h",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Pulling standard non-MLX model variants (such as qwen3.5, qwen3.6, and gemma4 variants) on Linux or Windows fails with HTTP 412 'this model requires macOS'.",
+      "root_cause_hypothesis": "Model manifests hosted on the registry (or the server-side manifest validation logic) incorrectly assign macOS/Metal backend requirements to non-MLX GGUF model tags.",
+      "suggested_approach": "Audit and correct model manifest tags in the registry database/manifest repository to remove OS restrictions from standard GGUF variants, and verify pull validation logic in the Ollama client/server.",
+      "likely_areas": [
+        "server/registry",
+        "server/manifest",
+        "model registry backend"
+      ],
+      "prerequisites": [
+        "Access or repository control over Ollama model manifest definitions",
+        "Understanding of Ollama pull manifest architecture and OS restriction headers"
+      ],
+      "implementation_steps": [
+        "Audit registry model manifests for qwen3.5, qwen3.6, and gemma4 tags to locate invalid OS/architecture constraint metadata.",
+        "Update the manifest publishing pipeline and existing manifest tags to ensure non-MLX GGUF models do not declare macOS restrictions.",
+        "Review server pull validation logic (e.g. server/pull.go or registry handlers) to ensure client OS checks correctly parse model capabilities.",
+        "Verify pulling the updated model tags on Linux and Windows environments without encountering HTTP 412 errors."
+      ],
+      "confidence": "high",
+      "processed_at": "2026-08-07T02:12:37.778074+00:00"
     }
   }
 }
