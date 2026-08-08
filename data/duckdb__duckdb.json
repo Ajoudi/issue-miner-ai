@@ -1,0 +1,89 @@
+{
+  "repo": "duckdb/duckdb",
+  "generated_at": "2026-08-08T01:03:41.826612+00:00",
+  "issues": {
+    "13069": {
+      "repo": "duckdb/duckdb",
+      "number": 13069,
+      "title": "Can't create a view with prepared parameteres",
+      "source_url": "https://github.com/duckdb/duckdb/issues/13069",
+      "labels": [
+        "reproduced"
+      ],
+      "reactions": 10,
+      "updated_at": "2026-07-16T08:22:08Z",
+      "need_score": 30.0,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue involves query binder logic where prepared parameters are disallowed in CREATE VIEW statements. Fixing this requires understanding how the binder handles statements and whether views can support parameters or if parameters must be disallowed/bound differently at view creation time.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [
+        "Requires modifying core query binder logic in DuckDB C++/SQL parser."
+      ],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Creating a view using a prepared statement with parameters fails with a BinderException ('Unexpected prepared parameter. This type of statement can't be prepared!').",
+      "root_cause_hypothesis": "The expression binder or statement binder rejects parameter expressions (`ParameterExpression`) when binding DDL statements such as `CREATE VIEW`. DDL statements or parameter binder logic currently treat `CREATE VIEW` queries as non-preparable or disallow parameters during expression binding.",
+      "suggested_approach": "Allow prepared parameters in `CREATE VIEW` statements by allowing parameter binding during view definition binding. Replace parameter expressions in the inner query definition with their bound literal constant values (or evaluate/fold them) prior to persisting the view definition, ensuring the created view contains concrete query expressions.",
+      "likely_areas": [
+        "src/planner/binder/statement/bind_create.cpp",
+        "src/planner/expression_binder.cpp",
+        "src/planner/binder.cpp",
+        "src/execution/expression_executor.cpp"
+      ],
+      "prerequisites": [
+        "Ability to build DuckDB from source and run Python client unit tests",
+        "Familiarity with DuckDB AST binding, ExpressionBinder, and CreateViewInfo"
+      ],
+      "implementation_steps": [
+        "Locate the binder check that produces 'Unexpected prepared parameter. This type of statement can't be prepared!' (typically in `ExpressionBinder` or statement binding for `CreateStatement`).",
+        "Update `Binder::Bind(CreateStatement&)` or the view statement binding logic to permit parameter expressions when binding the view creation query.",
+        "Ensure that bound parameters are properly folded or substituted with their constant values in the AST / `CreateViewInfo` before the view definition is stored into the catalog.",
+        "Add SQL regression tests and Python tests for `CREATE VIEW ... AS ...` statements using prepared parameters (e.g. parameter in table functions like `read_csv(?)` or WHERE clauses)."
+      ],
+      "confidence": "high",
+      "processed_at": "2026-08-08T01:02:53.421511+00:00"
+    },
+    "16785": {
+      "repo": "duckdb/duckdb",
+      "number": 16785,
+      "title": "`COPY FROM DATABASE x TO y` fails with `key ... does not exist in the referenced table`",
+      "source_url": "https://github.com/duckdb/duckdb/issues/16785",
+      "labels": [
+        "reproduced"
+      ],
+      "reactions": 4,
+      "updated_at": "2026-04-09T22:44:09Z",
+      "need_score": 21.2,
+      "feasibility": "high",
+      "feasibility_reason": "The issue provides clear reproduction steps and points to a specific internal command COPY FROM DATABASE failing on foreign key constraints during cross-database copying, which is localized and debuggable.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Executing COPY FROM DATABASE fails with a foreign key constraint error when target tables are populated out of order relative to their foreign key relationships.",
+      "root_cause_hypothesis": "During COPY FROM DATABASE execution, statements for copying table data are constructed or executed without ordering tables by foreign key dependency (topological sort), causing child tables to be populated before their referenced parent tables exist or hold data.",
+      "suggested_approach": "Implement topological sorting of tables based on foreign key dependencies in the COPY FROM DATABASE binder logic (bind_copy_database.cpp), ensuring parent tables are fully created and inserted into before child tables with foreign key constraints.",
+      "likely_areas": [
+        "src/planner/binder/statement/bind_copy_database.cpp",
+        "src/catalog/catalog_entry/table_catalog_entry.cpp",
+        "test/sql/copy_database/copy_database_fk.test"
+      ],
+      "prerequisites": [
+        "Ability to build DuckDB C++ codebase and run SQLLogictest suite for COPY FROM DATABASE."
+      ],
+      "implementation_steps": [
+        "Analyze bind_copy_database.cpp where copying statements for catalog table entries are constructed.",
+        "Extract Foreign Key constraint relationships between tables from the source database catalog.",
+        "Perform a topological sort on the tables using their FK dependency graph so referenced tables precede referencing tables.",
+        "Ensure circular or self-referential foreign key dependencies are handled appropriately (e.g. deferring constraint checks if necessary or inserting in correct dependency phases).",
+        "Add test cases reproducing multi-table schema with FK constraints in test/sql/copy_database/."
+      ],
+      "confidence": "high",
+      "processed_at": "2026-08-08T01:03:01.166473+00:00"
+    }
+  }
+}
