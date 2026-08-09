@@ -1,6 +1,6 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-08-08T01:00:48.573332+00:00",
+  "generated_at": "2026-08-09T01:04:55.515456+00:00",
   "issues": {
     "15280": {
       "repo": "langfuse/langfuse",
@@ -52,37 +52,79 @@
         "feat-onboarding"
       ],
       "reactions": 1,
-      "updated_at": "2026-08-04T19:11:27Z",
-      "need_score": 10.8,
+      "updated_at": "2026-08-08T06:54:41Z",
+      "need_score": 12.8,
       "feasibility": "high",
-      "feasibility_reason": "The issue clearly identifies a documentation bug in CONTRIBUTING.md regarding the ClickHouse installation instructions and suggests using a docker-based approach already present in the codebase. This is straightforward to update.",
+      "feasibility_reason": "The issue clearly identifies a broken documentation path in CONTRIBUTING.md regarding ClickHouse installation on macOS and proposes a straightforward fix using Docker or updated instructions.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "under_1h",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "ClickHouse installation instructions in CONTRIBUTING.md are broken/outdated on macOS, and there is no agent skill covering local dev setup from zero to running stack.",
-      "root_cause_hypothesis": "Homebrew cask changes for ClickHouse broke the manual binary installation step in CONTRIBUTING.md, while repo environment bootstrap steps (Docker containers, environment files, CLI tools, database migrations, and seeding sequence) lack a dedicated skill in .agents/skills/.",
-      "suggested_approach": "Update CONTRIBUTING.md to use the Docker exec shim for ClickHouse, introduce a scripts/preflight.sh script to validate prerequisites, and add a setup-local-dev skill under .agents/skills/ to guide agentic workflows through local environment setup.",
+      "problem_summary": "Local development setup documentation in CONTRIBUTING.md is broken on macOS and Linux due to outdated installation paths for ClickHouse and golang-migrate. Additionally, AI agents lack a dedicated setup skill to bootstrap the repository from scratch.",
+      "root_cause_hypothesis": "Homebrew clickhouse casks are deprecated on macOS, golang-migrate on Linux requires specific build tags (clickhouse) not currently documented, and existing agent skills only cover downstream workflows rather than initial environment bootstrapping.",
+      "suggested_approach": "Update CONTRIBUTING.md with working installation instructions for ClickHouse (using docker exec shim or updated packages) and golang-migrate across OS platforms. Introduce a setup-local-dev agent skill and a preflight script to reliably validate and execute local environment setup.",
       "likely_areas": [
         "CONTRIBUTING.md",
         ".agents/skills/",
         "scripts/"
       ],
       "prerequisites": [
-        "Local Docker environment running",
-        "Node.js and pnpm installed",
-        "Familiarity with the agent skill structure in .agents/skills/"
+        "Docker runtime running locally",
+        "Node.js, pnpm, and Go installed on host"
       ],
       "implementation_steps": [
-        "Update CONTRIBUTING.md with the Docker exec clickhouse client wrapper/shim instead of the deprecated Homebrew cask instructions.",
-        "Create a scripts/preflight.sh script that checks for Node.js, pnpm, Docker daemon status, required CLI binaries, and port availability.",
-        "Create a new agent skill under .agents/skills/ (e.g., setup-local-dev) documenting the precise sequence for environment bootstrap (.env setup, pnpm install, Docker infra spin-up, migration execution, and seeding).",
-        "Validate the preflight script and setup procedure by running an end-to-end local bootstrap test."
+        "Update CONTRIBUTING.md with correct golang-migrate installation commands (including -tags clickhouse for Go installs on Linux) and updated ClickHouse CLI guidance.",
+        "Add a preflight verification script under scripts/ to check Node.js, pnpm, Docker daemon status, and CLI tools before running dev commands.",
+        "Create the setup-local-dev agent skill under .agents/skills/ to guide agentic setup including dependency checks, .env creation, container startup, and database migrations in the exact required order.",
+        "Validate the end-to-end setup procedure from a clean environment state."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-06T01:50:38.185619+00:00"
+      "processed_at": "2026-08-09T01:04:28.524664+00:00"
+    },
+    "15372": {
+      "repo": "langfuse/langfuse",
+      "number": 15372,
+      "title": "bug(sdk-js): mask is silently skipped for third-party OTel instrumentation spans - PII can reach the API unmasked",
+      "source_url": "https://github.com/langfuse/langfuse/issues/15372",
+      "labels": [
+        "🐞❔ unconfirmed bug"
+      ],
+      "reactions": 1,
+      "updated_at": "2026-07-27T21:47:01Z",
+      "need_score": 4.8,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue points out a design gap where the sdk-js 'mask' hook does not intercept third-party OpenTelemetry spans, which use a different path. While the root cause is understood (mask operates at attribute creation, not export/OTel span ingestion), solving it requires a careful design decision on whether to hook 'mask_otel_spans' automatically into third-party tracer exports or add runtime warnings/documentation improvements.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [
+        "Requires architectural decision on how third-party OpenTelemetry spans should integrate with the SDK masking pipeline."
+      ],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "When a Langfuse client is configured with a 'mask' hook, third-party OpenTelemetry instrumentation spans bypass SDK observation creation and are exported unmasked without any runtime warning if 'mask_otel_spans' is not configured.",
+      "root_cause_hypothesis": "The 'mask' callback is applied during native SDK observation/attribute creation time. Third-party OTel spans bypass the SDK creation hooks and flow directly into the OpenTelemetry SpanProcessor, where only 'mask_otel_spans' is evaluated during the export stage.",
+      "suggested_approach": "Emit a runtime warning or auto-apply 'mask' to string attributes of non-SDK OTel spans at export time when 'mask' is defined and 'mask_otel_spans' is omitted.",
+      "likely_areas": [
+        "Span processor and export pipeline",
+        "SDK client initialization and options validation",
+        "Documentation and integration guides"
+      ],
+      "prerequisites": [
+        "Environment with OpenTelemetry SDK and Langfuse SDK installed",
+        "Test suite setup for verifying span processing and masking behavior"
+      ],
+      "implementation_steps": [
+        "Inspect client initialization logic where 'mask' and 'mask_otel_spans' options are parsed.",
+        "In the span processor or exporter before processing span patches, detect when 'mask' is set but 'mask_otel_spans' is absent.",
+        "Implement a fallback or wrapper for 'mask_otel_spans' that applies 'mask' to string span attributes, or trigger a clear runtime warning when non-SDK spans are encountered without 'mask_otel_spans'.",
+        "Add unit and integration tests covering third-party span exports with 'mask' enabled.",
+        "Update integration guides and masking documentation to highlight the requirement of 'mask_otel_spans' for third-party OTel instrumentations."
+      ],
+      "confidence": "high",
+      "processed_at": "2026-08-09T01:04:55.515357+00:00"
     }
   }
 }
