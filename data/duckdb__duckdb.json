@@ -1,6 +1,6 @@
 {
   "repo": "duckdb/duckdb",
-  "generated_at": "2026-08-10T01:07:03.216004+00:00",
+  "generated_at": "2026-08-11T01:07:10.765196+00:00",
   "issues": {
     "13069": {
       "repo": "duckdb/duckdb",
@@ -170,6 +170,48 @@
       ],
       "confidence": "high",
       "processed_at": "2026-08-09T01:05:53.501995+00:00"
+    },
+    "7168": {
+      "repo": "duckdb/duckdb",
+      "number": 7168,
+      "title": "Defer foreign key constraint validation until the end of the statement",
+      "source_url": "https://github.com/duckdb/duckdb/issues/7168",
+      "labels": [
+        "reproduced"
+      ],
+      "reactions": 3,
+      "updated_at": "2026-04-02T00:54:49Z",
+      "need_score": 18.4,
+      "feasibility": "medium",
+      "feasibility_reason": "Deferring foreign key validation until transaction or statement end requires deep modifications to the execution engine's constraint checking logic and transactional state management, which might be complex for an outsider.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [
+        "Requires changes to statement-level or transaction-level constraint evaluation semantics in the storage/catalog engine."
+      ],
+      "estimated_effort": "multi_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Multi-row INSERT statements on self-referencing tables fail foreign key validation because parent rows inserted within the same statement are not available in the referenced index during FK check execution.",
+      "root_cause_hypothesis": "DuckDB validates foreign key constraints against existing table storage and indexes prior to inserting the current execution chunk or statement's data. As a result, references to parent keys provided earlier in the same INSERT batch are not recognized.",
+      "suggested_approach": "Adjust the insertion and FK validation pipeline so that foreign key checks are deferred until after rows in the batch are appended to local table storage/indexes, or ensure FK validation inspects both existing table storage and candidate rows in the incoming batch.",
+      "likely_areas": [
+        "src/execution/operator/persistent/physical_insert.cpp",
+        "src/planner/binder/statement/bind_insert.cpp",
+        "src/storage/table/column_data.cpp",
+        "src/catalog/catalog_entry/table_catalog_entry.cpp"
+      ],
+      "prerequisites": [
+        "Understanding of DuckDB execution pipelines, PhysicalInsert operator, index structures, and transaction-local storage handling."
+      ],
+      "implementation_steps": [
+        "Trace the FK validation flow during PhysicalInsert execution to identify when foreign key constraints are evaluated relative to index updates.",
+        "Refactor the constraint check mechanism to either defer foreign key validation to the end of the statement/batch or update local table indexes before FK validation.",
+        "Ensure error handling properly rolls back or discards staged inserts if FK validation fails after local storage updates.",
+        "Add SQL test cases covering self-referencing multi-row inserts, trees/graphs inserted in a single statement, and multi-chunk INSERT operations."
+      ],
+      "confidence": "medium",
+      "processed_at": "2026-08-11T01:07:10.765126+00:00"
     }
   }
 }

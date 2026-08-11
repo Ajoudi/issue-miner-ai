@@ -1,5 +1,49 @@
 {
   "repo": "ClickHouse/ClickHouse",
-  "generated_at": "2026-08-10T01:09:04.862536+00:00",
-  "issues": {}
+  "generated_at": "2026-08-11T01:08:59.362530+00:00",
+  "issues": {
+    "80561": {
+      "repo": "ClickHouse/ClickHouse",
+      "number": 80561,
+      "title": "Incorrect S3 metadata path resolution when config is populated in Iceberg REST catalog /v1/config response",
+      "source_url": "https://github.com/ClickHouse/ClickHouse/issues/80561",
+      "labels": [
+        "bug",
+        "comp-datalake"
+      ],
+      "reactions": 5,
+      "updated_at": "2026-07-15T14:00:06Z",
+      "need_score": 26.0,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue describes a clear bug involving path normalization when an Iceberg REST catalog /v1/config response includes s3.endpoint, causing duplicate prefix concatenation. However, fixing this requires understanding ClickHouse's internal Iceberg REST catalog integration and how metadata_location and data_location paths are resolved relative to endpoint configurations.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [
+        "Familiarity with ClickHouse's Iceberg REST catalog implementation and path resolution logic."
+      ],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "When ClickHouse queries an Iceberg REST catalog that returns catalog config like `s3.endpoint`, `metadata_location` and `data_location` may have inconsistent URI schemes or endpoints (e.g., `s3://...` vs `http://...`). ClickHouse's metadata path calculation attempts a naive string prefix check (`metadata_location.starts_with(data_location)`), which fails due to prefix mismatch, leading to malformed double S3 path keys like `s3://examples/.../s3://examples/...`.",
+      "root_cause_hypothesis": "The metadata parsing logic in ClickHouse assumes `data_location` and `metadata_location` use identical string prefixes (e.g., both start with `s3://`). When `s3.endpoint` is configured in the Iceberg REST catalog response, `data_location` or the table endpoint prefix may differ from `metadata_location`, causing `starts_with` comparison to fail and appending the full `metadata_location` URI to the target key path.",
+      "suggested_approach": "Normalize `metadata_location` and `data_location` before resolving relative paths by stripping scheme prefixes (`s3://`, `http://`, `https://`) and host/endpoint prefixes, or by parsing both locations into bucket and object key components to reliably extract the relative path of the metadata file.",
+      "likely_areas": [
+        "src/Storages/DataLake/IcebergMetadata.cpp",
+        "src/Storages/DataLake/IcebergRESTCatalog.cpp",
+        "src/Storages/StorageIceberg.cpp"
+      ],
+      "prerequisites": [
+        "Set up a local ClickHouse development environment with C++ toolchain and tests.",
+        "Set up an Iceberg REST catalog (e.g. Apache Lakekeeper or Nessie) pointing to MinIO with custom endpoint config to reproduce the issue."
+      ],
+      "implementation_steps": [
+        "Locate the path normalization logic in Iceberg metadata resolution where `metadata_location.starts_with(data_location)` is checked.",
+        "Implement a helper function to extract the relative S3 key from a location URL by stripping scheme protocols (e.g., `s3://`, `http://`, `https://`), host/port parts, and bucket names.",
+        "Update the metadata path calculation logic to use the helper function so that relative metadata keys are resolved properly regardless of endpoint or URI scheme differences between `data_location` and `metadata_location`.",
+        "Add unit tests and integration tests covering REST catalog configurations with custom `s3.endpoint` values and mixed scheme URIs."
+      ],
+      "confidence": "high",
+      "processed_at": "2026-08-11T01:07:40.092772+00:00"
+    }
+  }
 }
