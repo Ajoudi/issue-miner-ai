@@ -1,6 +1,6 @@
 {
   "repo": "ClickHouse/ClickHouse",
-  "generated_at": "2026-08-11T01:08:59.362530+00:00",
+  "generated_at": "2026-08-12T01:15:27.165621+00:00",
   "issues": {
     "80561": {
       "repo": "ClickHouse/ClickHouse",
@@ -44,6 +44,134 @@
       ],
       "confidence": "high",
       "processed_at": "2026-08-11T01:07:40.092772+00:00"
+    },
+    "76518": {
+      "repo": "ClickHouse/ClickHouse",
+      "number": 76518,
+      "title": "INSERT SELECT fails during schema inferece if the same identifier is used in projection list",
+      "source_url": "https://github.com/ClickHouse/ClickHouse/issues/76518",
+      "labels": [
+        "bug",
+        "analyzer"
+      ],
+      "reactions": 1,
+      "updated_at": "2026-05-25T09:01:03Z",
+      "need_score": 14.8,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue involves schema inference during an INSERT SELECT statement where duplicate projected identifiers or expressions cause column collision errors. While reproducible with a clear example, understanding where schema inference builds the columns list for INSERT SELECT requires navigating the query execution and table block structures.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "INSERT SELECT queries against table functions (such as s3Cluster or s3) fail with ILLEGAL_COLUMN (column with this name already exists) during query analysis and schema inference when the same column identifier is projected multiple times in the SELECT clause.",
+      "root_cause_hypothesis": "During query analysis of table functions in QueryAnalyzer::resolveTableFunction, schema inference inspects the SELECT projection list to determine the requested columns. When the same underlying column (e.g., `size`) is referenced multiple times with different aliases, its name is added repeatedly to a ColumnsDescription collection without deduplication or checking whether the column has already been added.",
+      "suggested_approach": "Deduplicate requested column names or check whether a column already exists in ColumnsDescription using `has()` before invoking `ColumnsDescription::add()` during table function schema inference and query analysis.",
+      "likely_areas": [
+        "src/Analyzer/QueryAnalyzer.cpp",
+        "src/Storages/ColumnsDescription.cpp",
+        "src/TableFunctions/TableFunctionS3Cluster.cpp",
+        "src/Storages/StorageS3.cpp"
+      ],
+      "prerequisites": [
+        "C++20 development environment configured for ClickHouse",
+        "Ability to build and run ClickHouse analyzer tests"
+      ],
+      "implementation_steps": [
+        "Locate the column extraction logic inside `QueryAnalyzer::resolveTableFunction` in `src/Analyzer/QueryAnalyzer.cpp`.",
+        "Identify the loop or helper function where column names from query tree nodes are added into the `ColumnsDescription` structure for schema inference.",
+        "Update the logic to deduplicate column names or check `columns_description.has(column_name)` before calling `columns_description.add(...)`.",
+        "Add functional SQL tests in `tests/queries/0_stateless/` reproducing `INSERT INTO ... SELECT col AS x, col AS y FROM s3Cluster(...)` to prevent regressions."
+      ],
+      "confidence": "high",
+      "processed_at": "2026-08-12T01:14:46.815991+00:00"
+    },
+    "58479": {
+      "repo": "ClickHouse/ClickHouse",
+      "number": 58479,
+      "title": "Query with broken link cannot be cancelled while reading from S3",
+      "source_url": "https://github.com/ClickHouse/ClickHouse/issues/58479",
+      "labels": [
+        "bug"
+      ],
+      "reactions": 1,
+      "updated_at": "2026-08-10T15:47:23Z",
+      "need_score": 14.8,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue describes a timeout/cancellation blockage in S3 read operations due to retries not checking cancellation tokens. While the problem is clear and reproducible via an S3 URL, fixing network/retry loops in S3 integration requires careful handling of cancellation checks within AWS SDK or ClickHouse's S3 client wrapper, which might touch complex networking and threading logic.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [
+        "Requires understanding the ClickHouse S3 client implementation and its retry/timeout handling."
+      ],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Queries reading from S3 cannot be cancelled immediately when pointing to broken or unresponsive S3 links, remaining stuck in network read or retry loops until all retries exhaust.",
+      "root_cause_hypothesis": "ReadBufferFromS3 and the underlying AWS SDK HTTP client retry logic do not check for query cancellation (isCancelled) or cancellation tokens during active reads and retries, only checking status between block processing in the query pipeline.",
+      "suggested_approach": "Integrate query cancellation checks into ReadBufferFromS3 and the AWS HTTP client request/retry callbacks so network operations fail fast with a cancellation exception when a query cancellation packet is received.",
+      "likely_areas": [
+        "src/IO/ReadBufferFromS3.cpp",
+        "src/IO/S3Common.cpp",
+        "src/Storages/StorageS3.cpp",
+        "src/Storages/S3/S3Source.cpp"
+      ],
+      "prerequisites": [
+        "Knowledge of ClickHouse QueryStatus and query cancellation mechanisms",
+        "Understanding of ClickHouse AWS SDK integration and ReadBufferFromS3 execution path"
+      ],
+      "implementation_steps": [
+        "Identify where ReadBufferFromS3 performs blocking network calls and retries when attempting to read object metadata or stream content.",
+        "Add periodic checks for query cancellation (e.g., context->getProcessListElement()->isCancelled()) inside the retry loop and read iteration methods.",
+        "Pass query cancellation tokens or callbacks down to the AWS HTTP client / request handler to abort active socket operations when cancellation is signaled.",
+        "Ensure cancellation raises a explicit QUERY_WAS_CANCELLED exception to terminate pipeline execution gracefully.",
+        "Add or update unit/integration tests to verify that a cancelled S3 query aborts within expected bounds during network retries."
+      ],
+      "confidence": "high",
+      "processed_at": "2026-08-12T01:15:07.761139+00:00"
+    },
+    "58928": {
+      "repo": "ClickHouse/ClickHouse",
+      "number": 58928,
+      "title": "`kafka_skip_broken_messages` is silently ignored for `Protobuf` and `ProtobufSingle` formats",
+      "source_url": "https://github.com/ClickHouse/ClickHouse/issues/58928",
+      "labels": [
+        "bug",
+        "comp-message-queues",
+        "comp-formats"
+      ],
+      "reactions": 0,
+      "updated_at": "2026-05-22T18:02:38Z",
+      "need_score": 12.0,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue clearly identifies a bug where kafka_skip_broken_messages is ignored specifically for Protobuf formats in the Kafka table engine. Fixing it requires understanding how format-specific error handling interacts with the Kafka streaming reader, but it is localized to the integration between Kafka engine and the Protobuf parser.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "The `kafka_skip_broken_messages` setting is ignored when using `Protobuf` or `ProtobufSingle` formats in Kafka tables, causing queries or stream processing to throw exceptions on invalid message payloads rather than skipping them up to the set budget.",
+      "root_cause_hypothesis": "Exceptions thrown during Protobuf message header or payload parsing (such as length-varint decoding or field parsing in `ProtobufRowInputFormat`) bypass the broken message handling logic in `StorageKafka` or are not properly isolated per Kafka message, causing execution to terminate prematurely.",
+      "suggested_approach": "Audit exception propagation and input stream reset behavior in `StorageKafka` and `ProtobufRowInputFormat`. Ensure message boundary parsing failures in Protobuf formats are caught by the Kafka engine input handling loop so that broken messages increment the skipped message counter and allow consumption of subsequent valid messages.",
+      "likely_areas": [
+        "src/Storages/Kafka/StorageKafka.cpp",
+        "src/Processors/Formats/Impl/ProtobufRowInputFormat.cpp",
+        "src/Processors/Formats/Impl/ProtobufRowInputFormat.h"
+      ],
+      "prerequisites": [
+        "Ability to build ClickHouse from source with Kafka component support.",
+        "Local test environment with integration test setup using Kafka (e.g. runner or docker-compose integration tests)."
+      ],
+      "implementation_steps": [
+        "Trace `StorageKafka` message reading loop to verify how broken message exceptions are handled across different format types.",
+        "Analyze `ProtobufRowInputFormat` and `ProtobufSingleRowInputFormat` exception locations during varint length parsing and protobuf deserialization.",
+        "Ensure parsing errors inside a single Kafka message trigger the `kafka_skip_broken_messages` fallback in `StorageKafka` without corrupting the stream state for subsequent Kafka messages.",
+        "Add or update integration tests in `tests/integration/` verifying that malformed Protobuf and ProtobufSingle messages are skipped up to `kafka_skip_broken_messages` while valid messages are correctly inserted."
+      ],
+      "confidence": "high",
+      "processed_at": "2026-08-12T01:15:27.165562+00:00"
     }
   }
 }
