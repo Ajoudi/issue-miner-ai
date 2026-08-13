@@ -1,6 +1,6 @@
 {
   "repo": "ClickHouse/ClickHouse",
-  "generated_at": "2026-08-12T01:15:27.165621+00:00",
+  "generated_at": "2026-08-13T01:17:54.556185+00:00",
   "issues": {
     "80561": {
       "repo": "ClickHouse/ClickHouse",
@@ -93,43 +93,46 @@
       "title": "Query with broken link cannot be cancelled while reading from S3",
       "source_url": "https://github.com/ClickHouse/ClickHouse/issues/58479",
       "labels": [
-        "bug"
+        "bug",
+        "clickgap-analyzed",
+        "culprit-pr-not-found"
       ],
       "reactions": 1,
-      "updated_at": "2026-08-10T15:47:23Z",
+      "updated_at": "2026-08-12T08:06:08Z",
       "need_score": 14.8,
       "feasibility": "medium",
-      "feasibility_reason": "The issue describes a timeout/cancellation blockage in S3 read operations due to retries not checking cancellation tokens. While the problem is clear and reproducible via an S3 URL, fixing network/retry loops in S3 integration requires careful handling of cancellation checks within AWS SDK or ClickHouse's S3 client wrapper, which might touch complex networking and threading logic.",
+      "feasibility_reason": "The issue describes a well-defined hang when reading from S3 with broken links, where cancellation checks are not executed because the read/retry loop does not yield control or check for cancellation. However, pinpointing the exact blocking network call or AWS SDK retry loop and integrating cancellation checks safely requires careful navigation of the S3 client code.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [
-        "Requires understanding the ClickHouse S3 client implementation and its retry/timeout handling."
+        "Need to identify the specific S3 client read/retry loop blocking the thread",
+        "Ensure thread cancellation tokens or context flags are properly checked within the third-party or wrapper S3 read operations"
       ],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Queries reading from S3 cannot be cancelled immediately when pointing to broken or unresponsive S3 links, remaining stuck in network read or retry loops until all retries exhaust.",
-      "root_cause_hypothesis": "ReadBufferFromS3 and the underlying AWS SDK HTTP client retry logic do not check for query cancellation (isCancelled) or cancellation tokens during active reads and retries, only checking status between block processing in the query pipeline.",
-      "suggested_approach": "Integrate query cancellation checks into ReadBufferFromS3 and the AWS HTTP client request/retry callbacks so network operations fail fast with a cancellation exception when a query cancellation packet is received.",
+      "problem_summary": "Queries attempting to read from invalid, unresponsive, or retrying S3 endpoints cannot be cancelled in a timely manner. The query execution thread gets stuck waiting on synchronous network I/O or retry loops inside S3 reading components without checking for query cancellation.",
+      "root_cause_hypothesis": "Read operations and retry loops inside S3 read buffers (e.g., ReadBufferFromS3 / S3Source) execute blocking I/O calls or AWS SDK requests without periodically checking the query context cancellation flag (isCancelled() / checkKey() / KillStatus), causing the query to ignore client cancellation requests until all retries or long timeouts expire.",
+      "suggested_approach": "Add query cancellation checks inside S3 read buffers, retry loops, and underlying stream read callbacks. Ensure that when query cancellation is requested, S3 network operations and retries are immediately interrupted by throwing a query cancellation exception.",
       "likely_areas": [
         "src/IO/ReadBufferFromS3.cpp",
-        "src/IO/S3Common.cpp",
         "src/Storages/StorageS3.cpp",
-        "src/Storages/S3/S3Source.cpp"
+        "src/Processors/Sources/S3Source.cpp",
+        "src/IO/S3/S3Common.cpp"
       ],
       "prerequisites": [
-        "Knowledge of ClickHouse QueryStatus and query cancellation mechanisms",
-        "Understanding of ClickHouse AWS SDK integration and ReadBufferFromS3 execution path"
+        "Ability to build ClickHouse from source",
+        "Understanding of ClickHouse Query Context cancellation mechanics and S3 ReadBuffer architecture"
       ],
       "implementation_steps": [
-        "Identify where ReadBufferFromS3 performs blocking network calls and retries when attempting to read object metadata or stream content.",
-        "Add periodic checks for query cancellation (e.g., context->getProcessListElement()->isCancelled()) inside the retry loop and read iteration methods.",
-        "Pass query cancellation tokens or callbacks down to the AWS HTTP client / request handler to abort active socket operations when cancellation is signaled.",
-        "Ensure cancellation raises a explicit QUERY_WAS_CANCELLED exception to terminate pipeline execution gracefully.",
-        "Add or update unit/integration tests to verify that a cancelled S3 query aborts within expected bounds during network retries."
+        "Locate the retry and read loops inside ReadBufferFromS3 and S3Source.",
+        "Inject periodic checks for query cancellation (e.g. via Context::getKillStatus() or query context cancellation callbacks) before and during S3 request retries.",
+        "If cancellation is detected during S3 stream reads or retry delays, abort the operation immediately by throwing an DB::Exception with ErrorCodes::QUERY_WAS_CANCELLED.",
+        "Ensure S3Source utilizes async execution pipelines or properly handles cancellation signals when stuck waiting on block generation.",
+        "Add test cases or manual verification using unreachable/broken S3 endpoints to confirm that client cancellation (Ctrl+C / KILL QUERY) terminates the query promptly."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-12T01:15:07.761139+00:00"
+      "processed_at": "2026-08-13T01:17:17.691618+00:00"
     },
     "58928": {
       "repo": "ClickHouse/ClickHouse",
