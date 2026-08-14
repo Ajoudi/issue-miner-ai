@@ -1,6 +1,6 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-08-13T01:14:06.011342+00:00",
+  "generated_at": "2026-08-14T01:12:44.312599+00:00",
   "issues": {
     "15280": {
       "repo": "langfuse/langfuse",
@@ -125,6 +125,52 @@
       ],
       "confidence": "high",
       "processed_at": "2026-08-09T01:04:55.515357+00:00"
+    },
+    "597": {
+      "repo": "langfuse/langfuse",
+      "number": 597,
+      "title": "feat(openai-python): native support for assistants",
+      "source_url": "https://github.com/langfuse/langfuse/issues/597",
+      "labels": [
+        "prio-medium",
+        "sdk-python",
+        "integration-openai"
+      ],
+      "reactions": 6,
+      "updated_at": "2026-08-12T13:31:36Z",
+      "need_score": 17.8,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue requests adding native support for tracking OpenAI Assistants runs, threads, and steps within the Langfuse SDK. While the requirements are clearly listed, it requires designing a robust integration wrapper around OpenAI's beta endpoints and handling asynchronous API calls to fetch run steps, which introduces moderate complexity without prior codebase context.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "The Langfuse OpenAI Python SDK integration lacks native tracing support for OpenAI's Assistants API (beta threads, runs, messages, and run steps).",
+      "root_cause_hypothesis": "The existing OpenAI wrapper in langfuse-python only instruments standard chat completions, completions, and embedding endpoints, omitting OpenAI's `beta.assistants`, `beta.threads`, and related run/message execution pipelines.",
+      "suggested_approach": "Extend the OpenAI SDK instrumentation module (patcher/wrapper) to intercept OpenAI Assistant beta calls (`beta.threads.runs.create`, `beta.threads.runs.create_and_poll`, etc.), map thread messages and run step executions to Langfuse traces, spans, and generations, and fetch run steps if necessary to capture complete execution context.",
+      "likely_areas": [
+        "langfuse/openai.py",
+        "langfuse/decorators",
+        "tests/test_openai.py",
+        "tests/test_openai_assistants.py"
+      ],
+      "prerequisites": [
+        "Valid OpenAI API key and Langfuse test credentials/mock server",
+        "Understanding of OpenAI Assistants API v2 lifecycle (Assistant -> Thread -> Message -> Run -> Run Steps)"
+      ],
+      "implementation_steps": [
+        "Identify entrypoints to wrap within OpenAI's client hierarchy, specifically `client.beta.threads.runs.create`, `create_and_poll`, `stream`, and thread/message operations.",
+        "Implement monkey patching or wrapper proxies for synchronous and asynchronous beta assistant methods in `langfuse.openai`.",
+        "Create logic to establish a Langfuse Trace corresponding to the assistant run/thread session, associating metadata such as assistant ID and thread ID.",
+        "Implement polling/retrieval handlers to fetch intermediate run steps (`client.beta.threads.runs.steps.list`) and thread messages upon run completion, mapping tool calls to Langfuse Spans and model calls to Langfuse Generations.",
+        "Support streaming mode if assistant run streaming is utilized.",
+        "Add unit and integration tests covering assistant creation, thread execution, run step capture, and error handling.",
+        "Update documentation and examples demonstrating Langfuse OpenAI Assistants integration."
+      ],
+      "confidence": "high",
+      "processed_at": "2026-08-14T01:12:44.312537+00:00"
     }
   }
 }
