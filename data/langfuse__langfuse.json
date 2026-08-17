@@ -1,6 +1,6 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-08-16T00:47:51.013923+00:00",
+  "generated_at": "2026-08-17T00:46:09.317647+00:00",
   "issues": {
     "15280": {
       "repo": "langfuse/langfuse",
@@ -92,39 +92,41 @@
         "🐞❔ unconfirmed bug"
       ],
       "reactions": 1,
-      "updated_at": "2026-07-27T21:47:01Z",
+      "updated_at": "2026-08-13T18:05:18Z",
       "need_score": 4.8,
       "feasibility": "medium",
-      "feasibility_reason": "The issue points out a design gap where the sdk-js 'mask' hook does not intercept third-party OpenTelemetry spans, which use a different path. While the root cause is understood (mask operates at attribute creation, not export/OTel span ingestion), solving it requires a careful design decision on whether to hook 'mask_otel_spans' automatically into third-party tracer exports or add runtime warnings/documentation improvements.",
+      "feasibility_reason": "The issue correctly identifies a design limitation where the SDK's `mask` hook only applies to native span creation attributes and not to third-party OTel instrumentation spans, which require `mask_otel_spans`. While the technical distinction is clear, resolving it safely requires either documenting the limitation clearly or refactoring how the export pipeline intercepts third-party spans, which involves architectural design decisions.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [
-        "Requires architectural decision on how third-party OpenTelemetry spans should integrate with the SDK masking pipeline."
+        "Requires a design decision from maintainers on whether to automatically apply masking to third-party OTel spans or strictly enforce documentation updates and runtime warnings."
       ],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "When a Langfuse client is configured with a 'mask' hook, third-party OpenTelemetry instrumentation spans bypass SDK observation creation and are exported unmasked without any runtime warning if 'mask_otel_spans' is not configured.",
-      "root_cause_hypothesis": "The 'mask' callback is applied during native SDK observation/attribute creation time. Third-party OTel spans bypass the SDK creation hooks and flow directly into the OpenTelemetry SpanProcessor, where only 'mask_otel_spans' is evaluated during the export stage.",
-      "suggested_approach": "Emit a runtime warning or auto-apply 'mask' to string attributes of non-SDK OTel spans at export time when 'mask' is defined and 'mask_otel_spans' is omitted.",
+      "problem_summary": "When the Langfuse client is configured with the 'mask' hook, spans emitted by third-party OpenTelemetry instrumentation (e.g., OpenInference, OpenLIT) bypass masking and reach the exporter with raw attributes because 'mask' only transforms native SDK observations at creation time.",
+      "root_cause_hypothesis": "The 'mask' callback is applied during native observation lifecycle events rather than at the OpenTelemetry span processor / exporter stage. When third-party instrumentation creates spans directly on the tracer provider without 'mask_otel_spans' configured, spans are exported unmasked without any fallback or warning.",
+      "suggested_approach": "Ensure that when 'mask' is provided and 'mask_otel_spans' is not explicitly configured, the SDK either automatically adapts 'mask' to process span attributes before export or emits a one-time runtime warning when non-native / third-party span attributes are exported unmasked.",
       "likely_areas": [
-        "Span processor and export pipeline",
-        "SDK client initialization and options validation",
-        "Documentation and integration guides"
+        "langfuse/client.py",
+        "langfuse/otel/span_processor.py",
+        "langfuse/otel/exporter.py",
+        "langfuse/types.py"
       ],
       "prerequisites": [
-        "Environment with OpenTelemetry SDK and Langfuse SDK installed",
-        "Test suite setup for verifying span processing and masking behavior"
+        "Familiarity with Langfuse Python SDK masking hooks ('mask' vs 'mask_otel_spans')",
+        "Understanding of OpenTelemetry TracerProvider, SpanProcessor, and SpanExporter pipelines in the Langfuse SDK"
       ],
       "implementation_steps": [
-        "Inspect client initialization logic where 'mask' and 'mask_otel_spans' options are parsed.",
-        "In the span processor or exporter before processing span patches, detect when 'mask' is set but 'mask_otel_spans' is absent.",
-        "Implement a fallback or wrapper for 'mask_otel_spans' that applies 'mask' to string span attributes, or trigger a clear runtime warning when non-SDK spans are encountered without 'mask_otel_spans'.",
-        "Add unit and integration tests covering third-party span exports with 'mask' enabled.",
-        "Update integration guides and masking documentation to highlight the requirement of 'mask_otel_spans' for third-party OTel instrumentations."
+        "Inspect the initialization of Langfuse and its OTel SpanProcessor / Exporter where 'mask' and 'mask_otel_spans' are configured.",
+        "Implement an automatic fallback or wrapper mechanism: when 'mask' is defined but 'mask_otel_spans' is None, construct an internal 'mask_otel_spans' hook that applies the 'mask' function to string / content span attributes.",
+        "Identify third-party span attributes safely (distinguishing SDK-managed attributes from third-party attributes such as 'input.value' or 'llm.input_messages.*').",
+        "Ensure explicit 'mask_otel_spans' implementations override any automated fallback to maintain backwards compatibility.",
+        "Add a one-time runtime warning or log message if fallback cannot safely inspect certain span types or if third-party spans are detected without export-stage masking configured.",
+        "Write unit and integration tests verifying that third-party spans are masked when only 'mask' is configured and that custom 'mask_otel_spans' handlers still take precedence."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-09T01:04:55.515357+00:00"
+      "processed_at": "2026-08-17T00:46:09.317579+00:00"
     },
     "597": {
       "repo": "langfuse/langfuse",
