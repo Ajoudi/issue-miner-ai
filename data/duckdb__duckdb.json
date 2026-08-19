@@ -1,6 +1,6 @@
 {
   "repo": "duckdb/duckdb",
-  "generated_at": "2026-08-18T00:46:41.209408+00:00",
+  "generated_at": "2026-08-19T00:48:00.897305+00:00",
   "issues": {
     "13069": {
       "repo": "duckdb/duckdb",
@@ -212,6 +212,52 @@
       ],
       "confidence": "medium",
       "processed_at": "2026-08-11T01:07:10.765126+00:00"
+    },
+    "11817": {
+      "repo": "duckdb/duckdb",
+      "number": 11817,
+      "title": "Out-of-memory error when performing partitioned copy to S3",
+      "source_url": "https://github.com/duckdb/duckdb/issues/11817",
+      "labels": [
+        "under review"
+      ],
+      "reactions": 10,
+      "updated_at": "2026-07-02T04:16:19Z",
+      "need_score": 25.0,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue provides a clear reproduction script and narrows down the problem to partitioned copy to S3 consuming excessive memory, but fixing memory management in partitioned writes or S3 batching requires understanding internal streaming/buffering mechanisms of the storage extension and query engine.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [
+        "Requires debugging memory allocation during partitioned multi-file streaming uploads to S3."
+      ],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Performing a partitioned COPY TO S3 with Hive partitioning causes an Out-Of-Memory (OOM) error even with small datasets and a moderate number of partitions (e.g., 30 partitions).",
+      "root_cause_hypothesis": "When writing partitioned data to S3, multiple S3 file handles / writers are opened simultaneously (or kept open in memory). Each S3 file handle (S3WriteHandle / S3FileSystem multipart upload) allocates large default in-memory upload part buffers (e.g., 50-100 MiB per active file handle). When multiplied by the number of active partitions, memory usage exceeds the configured memory limit and triggers an allocation failure.",
+      "suggested_approach": "Adjust the buffer allocation mechanism for remote S3 file writers during partitioned copy, either by reducing default initial buffer sizes, dynamically scaling buffer sizes based on total active open files/memory limit, ensuring memory allocations are tracked and managed through DuckDB's BufferManager/Allocator, or flushing and closing partition files progressively / limiting concurrent active partition writers.",
+      "likely_areas": [
+        "extension/httpfs/s3fs.cpp",
+        "extension/httpfs/include/s3fs.hpp",
+        "src/execution/operator/persistent/physical_copy_to_file.cpp",
+        "src/execution/operator/persistent/physical_batch_copy_to_file.cpp",
+        "test/sql/copy/s3/hive_partitioned_write_s3.test_slow"
+      ],
+      "prerequisites": [
+        "DuckDB development environment with `httpfs` extension enabled and built",
+        "Local S3 mock (such as MinIO) or AWS S3 credentials configured for running remote copy tests"
+      ],
+      "implementation_steps": [
+        "Reproduce the issue locally with MinIO or the existing `test_slow` suite by running a COPY TO S3 with 20-30 partitions under a strict `memory_limit`.",
+        "Profile memory allocations during partitioned COPY to S3 to determine if memory is held in S3WriteHandle's multipart upload buffers or in DuckDB's partitioned copy writer structures.",
+        "Verify whether S3 write buffer allocations register with DuckDB's Allocator / BufferManager or use unmanaged/over-allocated memory buffers per file handle.",
+        "Implement smaller initial part buffer sizing or make write buffer sizes dynamic based on concurrent open file count and global memory limits.",
+        "Ensure `HivePartitionedColumnData` or partition write operators properly limit the number of concurrently open write buffers or manage buffer flushing to prevent concurrent multipart buffer exhaustion.",
+        "Run unit and regression tests including `test/sql/copy/s3/hive_partitioned_write_s3.test_slow` to verify that OOM is prevented without degrading throughput on non-partitioned single file writes."
+      ],
+      "confidence": "high",
+      "processed_at": "2026-08-19T00:48:00.897240+00:00"
     }
   }
 }

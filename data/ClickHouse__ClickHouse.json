@@ -1,6 +1,6 @@
 {
   "repo": "ClickHouse/ClickHouse",
-  "generated_at": "2026-08-18T00:47:58.390319+00:00",
+  "generated_at": "2026-08-19T00:49:59.293479+00:00",
   "issues": {
     "80561": {
       "repo": "ClickHouse/ClickHouse",
@@ -175,6 +175,49 @@
       ],
       "confidence": "high",
       "processed_at": "2026-08-12T01:15:27.165562+00:00"
+    },
+    "87575": {
+      "repo": "ClickHouse/ClickHouse",
+      "number": 87575,
+      "title": "Lazy materialization: Method deserializeBinaryBulk of SerializationAggregateFunction does not support cases where rows_offset {} is non-zero",
+      "source_url": "https://github.com/ClickHouse/ClickHouse/issues/87575",
+      "labels": [
+        "bug",
+        "clickgap-analyzed",
+        "culprit-pr-not-found"
+      ],
+      "reactions": 1,
+      "updated_at": "2026-08-12T08:09:26Z",
+      "need_score": 14.8,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue provides a clear error message, stack trace context, and reproduction schema, but implementing deserializeBinaryBulk with a non-zero rows_offset in SerializationAggregateFunction requires understanding the binary bulk deserialization protocol and how lazy materialization handles offsets for aggregate functions.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Queries on AggregateFunction columns fail with NOT_IMPLEMENTED when lazy materialization reads data starting at a non-zero row offset within a granule.",
+      "root_cause_hypothesis": "`SerializationAggregateFunction::deserializeBinaryBulk` does not implement support for non-zero `rows_offset`, throwing `DB::Exception(ErrorCodes::NOT_IMPLEMENTED, ...)` when lazy materialization attempts to read rows starting at an offset within a mark.",
+      "suggested_approach": "Implement handling for `rows_offset > 0` in `SerializationAggregateFunction::deserializeBinaryBulk` (and `deserializeBinaryBulkWithMultipleStreams` if applicable) by deserializing and discarding `rows_offset` elements from the stream before deserializing `limit` rows into the destination column, or by skipping serialized states appropriately.",
+      "likely_areas": [
+        "src/DataTypes/Serializations/SerializationAggregateFunction.cpp",
+        "src/DataTypes/Serializations/SerializationAggregateFunction.h"
+      ],
+      "prerequisites": [
+        "C++20 development environment configured for ClickHouse build",
+        "Understanding of ClickHouse columnar serialization (`ISerialization`, `deserializeBinaryBulk`) and AggregateFunction state deserialization",
+        "Understanding of lazy materialization reader mechanics and offsets in marks"
+      ],
+      "implementation_steps": [
+        "Locate `SerializationAggregateFunction::deserializeBinaryBulk` in `src/DataTypes/Serializations/SerializationAggregateFunction.cpp`.",
+        "Examine how other `ISerialization` implementations handle non-zero `rows_offset` when deserializing bulk streams.",
+        "Update `SerializationAggregateFunction::deserializeBinaryBulk` so that when `rows_offset > 0`, it allocates a temporary AggregateFunction state (or uses temporary memory) and deserializes/destroys `rows_offset` items to advance the read stream.",
+        "Ensure `deserializeBinaryBulkWithMultipleStreams` or any relevant stream reading helpers in `SerializationAggregateFunction` properly propagate and handle `rows_offset` without throwing `NOT_IMPLEMENTED`.",
+        "Add a regression test in `tests/queries/0_stateless/` using the reproduction query with `ORDER BY ... LIMIT ... OFFSET` and `query_plan_optimize_lazy_materialization = 1`."
+      ],
+      "confidence": "high",
+      "processed_at": "2026-08-19T00:49:59.293416+00:00"
     }
   }
 }
