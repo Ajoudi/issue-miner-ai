@@ -30,27 +30,54 @@ settings:
   max_triage_calls_per_run: 60
   max_blueprint_calls_per_run: 32
 
-# Each repo defines a tiered label strategy. Tiers are tried in order until we
-# have `candidate_pool_size` candidates. "" means "no label filter" (bug/reaction
-# fallback for lightly-labeled repos).
+# Each repo defines a tiered label strategy. Tiers are PLAIN LABEL NAMES (not
+# search syntax) so the same config works on any forge — they're tried in order
+# until we have `candidate_pool_size` candidates. "" means "no label filter"
+# (the reaction-ranked fallback for lightly-labeled repos). Label names must
+# match the repo's own casing/prefixes exactly ("Type/Bug", not "bug").
+#
+# `forge:` defaults to "github". Use "gitea" + `host:` for a self-hosted Gitea
+# tracker. Gitea's API is weaker than GitHub's (no reaction sort, no unassigned
+# filter), so narrow curated labels matter much more there — put the
+# contributor-facing labels first and leave the giant catch-all tier last.
 repos:
   - name: "ollama/ollama"
     label_tiers:
-      - 'label:"good first issue"'
-      - 'label:"help wanted"'
-      - 'label:bug'
+      - "good first issue"
+      - "help wanted"
+      - "bug"
   - name: "langfuse/langfuse"
     label_tiers:
-      - 'label:bug'
-      - ''
+      - "bug"
+      - ""
   - name: "duckdb/duckdb"
     label_tiers:
-      - 'label:bug'
-      - ''
+      - "bug"
+      - ""
   - name: "ClickHouse/ClickHouse"
     label_tiers:
-      - 'label:bug'
-      - ''
+      - "bug"
+      - ""
+
+  # FreeCAD has no "Bug" label at all — its contributor-facing labels are the
+  # whole point here (~145 open "Good first issue"), so there's no catch-all
+  # tier: an unlabeled FreeCAD pool is mostly unactionable user reports.
+  - name: "FreeCAD/FreeCAD"
+    label_tiers:
+      - "Good first issue"
+      - "Help wanted"
+
+  # Blender does not use GitHub — its tracker is a self-hosted Gitea instance.
+  # The API is public and needs no token. "Meta/Papercut" is Blender's term for
+  # small, well-defined annoyances, which is exactly our target shape; Type/Bug
+  # is ~4k issues and only used if the curated tiers run dry.
+  - name: "blender/blender"
+    forge: gitea
+    host: "https://projects.blender.org"
+    label_tiers:
+      - "Meta/Good First Issue"
+      - "Meta/Papercut"
+      - "Type/Bug"
 
 # Issues carrying ANY of these labels are always skipped.
 exclude_labels:

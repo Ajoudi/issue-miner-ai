@@ -47,7 +47,7 @@ def _process_repo(repo_cfg: dict, s: dict, exclude: list[str], budget: Budget) -
     print(f"\n=== {repo} ===")
 
     candidates = fetchers.fetch_candidates(
-        repo, repo_cfg["label_tiers"], s["candidate_pool_size"], _updated_after(repo_cfg, s)
+        repo_cfg, s["candidate_pool_size"], _updated_after(repo_cfg, s)
     )
     shortlist = scoring.rank(candidates, exclude, s["triage_pool_size"])
     print(f"  ranked {len(shortlist)}/{len(candidates)} candidates by need")
@@ -56,7 +56,7 @@ def _process_repo(repo_cfg: dict, s: dict, exclude: list[str], budget: Budget) -
 
     # Prune issues that have since been closed/fixed (no Gemini cost).
     if s.get("prune_closed_issues"):
-        newly = store.prune_resolved(st, repo, fetchers.get_issue_state)
+        newly = store.prune_resolved(st, repo, fetchers.state_checker(repo_cfg))
         if newly:
             print(f"  pruned {newly} resolved issue(s)")
 
@@ -89,7 +89,7 @@ def _process_repo(repo_cfg: dict, s: dict, exclude: list[str], budget: Budget) -
             print("  [budget] blueprint cap reached")
             break
         budget.blueprint_left -= 1
-        comments = fetchers.fetch_comments(repo, issue["number"], s["max_comments_per_issue"])
+        comments = fetchers.fetch_comments(repo_cfg, issue["number"], s["max_comments_per_issue"])
         bp = ai_engine.blueprint(issue, repo, comments, s["blueprint_model"], s["issue_body_char_limit"])
         if not bp:
             continue
@@ -111,7 +111,7 @@ def run(no_ai: bool = False) -> None:
             repo = repo_cfg["name"]
             print(f"\n=== {repo} ===")
             candidates = fetchers.fetch_candidates(
-                repo, repo_cfg["label_tiers"], s["candidate_pool_size"], _updated_after(repo_cfg, s)
+                repo_cfg, s["candidate_pool_size"], _updated_after(repo_cfg, s)
             )
             for i in scoring.rank(candidates, exclude, s["triage_pool_size"]):
                 print(f"    [{i['_score']:>5}] #{i['number']} {i['title'][:70]}")

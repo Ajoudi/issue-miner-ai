@@ -19,6 +19,10 @@ SPECIAL_ENV = re.compile(
 )
 META_ISSUE = re.compile(r"\b(tracking issue|meta[- ]issue|umbrella|rfc|proposal|roadmap|epic)\b", re.I)
 BROAD_FEATURE = re.compile(r"^\s*(feature request|feat|\[feature\]|support for|add support|please add)\b", re.I)
+# Label signals, matched as substrings so they survive per-forge naming schemes.
+CONTRIB_LABEL = re.compile(r"good[- ]?first[- ]?issue|help wanted|easy|beginner", re.I)
+PAPERCUT_LABEL = re.compile(r"papercut|small|quick win", re.I)
+BUG_LABEL = re.compile(r"(^|[/\s:-])bug(s|fix)?($|[/\s:,-])", re.I)
 
 
 def _age_days(iso: str | None) -> float:
@@ -66,10 +70,16 @@ def score_issue(issue: dict[str, Any], exclude_labels: list[str]) -> float | Non
         score += 2
     if REPRO_HINTS.search(blob):
         score += 3
-    if labels_lower & {"good first issue", "help wanted", "good-first-issue"}:
-        score += 6
-    if "bug" in labels_lower:
-        score += 2
+    # Label bonuses are matched as substrings, not exact names: forges prefix
+    # and capitalize differently ("Type/Bug", "Meta/Good First Issue",
+    # "Good first issue") and an exact-match set silently scores them all as 0.
+    label_blob = " ".join(labels_lower)
+    if CONTRIB_LABEL.search(label_blob):
+        score += 6     # explicitly flagged as newcomer-friendly by maintainers
+    if PAPERCUT_LABEL.search(label_blob):
+        score += 5     # small, well-defined annoyance — our ideal shape
+    if BUG_LABEL.search(label_blob):
+        score += 2     # a defect is more tractable than an open-ended feature
 
     # Recency: penalize stale and brand-new.
     if _age_days(issue.get("updated_at")) > 365:

@@ -16,30 +16,50 @@ then writes an AI plan for each. Here is exactly what happens on every run.
 
 The target repos live in `config.yml` under `repos:` — currently:
 
-| Repo | Domain |
-|---|---|
-| `ollama/ollama` | Local LLM runner |
-| `langfuse/langfuse` | LLM observability & evals |
-| `duckdb/duckdb` | Analytical in-process DB |
-| `ClickHouse/ClickHouse` | High-performance DB |
+| Repo | Domain | Forge |
+|---|---|---|
+| `ollama/ollama` | Local LLM runner | GitHub |
+| `langfuse/langfuse` | LLM observability & evals | GitHub |
+| `duckdb/duckdb` | Analytical in-process DB | GitHub |
+| `ClickHouse/ClickHouse` | High-performance DB | GitHub |
+| `FreeCAD/FreeCAD` | Parametric 3D CAD | GitHub |
+| `blender/blender` | 3D creation suite | Gitea (self-hosted) |
 
 Add/remove repos there — no code change. Each repo can override any setting.
 
-### 2. Fetch candidates — GitHub does the coarse filtering (`src/fetchers.py`)
+Label tiers are **plain label names**, matched against the repo's own casing and
+prefixes (`Type/Bug`, `Meta/Good First Issue`, `Good first issue`) — not search
+syntax. The older `label:"..."` form is still accepted and unwrapped.
 
-For each repo we ask the **GitHub Search API** for a candidate pool. The query
-*always* requires an issue to be:
+### 2. Fetch candidates — the forge does the coarse filtering (`src/fetchers.py`)
 
-- `is:issue is:open` — open issues only (pull requests excluded)
-- `no:assignee` — nobody is already working on it
-- `-linked:pr` — no fix is already in progress
-- `updated:>=<date>` — **active within `max_inactive_days` (default 180)** so
-  stale/abandoned issues never even get fetched (based on *last activity*, not
-  when it was opened — an old-but-active issue still counts as live)
-- a **label tier** — tried in order until the pool is full. These repos barely
-  use `good first issue`, so most fall back to `label:bug`, then no filter.
+For each repo we pull a candidate pool that *always* requires an issue to be
+open, unassigned, not already fixed by a linked PR, and **active within
+`max_inactive_days` (default 180)** — based on *last activity*, not when it was
+opened, so an old-but-active issue still counts as live. A **label tier** list is
+tried in order until the pool is full (`candidate_pool_size`, 40).
 
-Results come back sorted by total reactions. Pool size: `candidate_pool_size` (40).
+Two forge backends implement that contract:
+
+**`forge: github`** (default) — one **Search API** query per tier
+(`is:issue is:open no:assignee -linked:pr updated:>=<date> label:"..."`), sorted
+by total reactions, so the pool arrives demand-ordered with reaction counts
+already populated.
+
+**`forge: gitea`** — for self-hosted trackers like Blender's
+`projects.blender.org`, set via `host:`. The API is public and needs no token
+(`GITEA_TOKEN` is optional, only to lift anonymous rate limits). It is markedly
+weaker than GitHub's, so the backend compensates:
+
+| Gitea limitation | How we handle it |
+|---|---|
+| No reaction counts in the issue list | Back-fill one cheap `/reactions` call per candidate — otherwise every Gitea issue scores 0 on the NEED axis and sinks below GitHub ones |
+| No demand-based sort (`sort=mostcomment` is silently ignored) | Rely on narrow curated label tiers instead of a sorted firehose |
+| No unassigned filter | Drop assigned issues client-side |
+
+This is why tier order matters much more on Gitea: `Meta/Good First Issue` (74
+open) and `Meta/Papercut` (105) are curated and small enough to sample
+meaningfully, while `Type/Bug` (~4k) is a last resort.
 
 ### 3. Rank by "need" — cheap heuristics, no LLM (`src/scoring.py`)
 
