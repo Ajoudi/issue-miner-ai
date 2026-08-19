@@ -1,0 +1,107 @@
+{
+  "repo": "FreeCAD/FreeCAD",
+  "generated_at": "2026-08-19T09:28:05.504192+00:00",
+  "issues": {
+    "24238": {
+      "repo": "FreeCAD/FreeCAD",
+      "number": 24238,
+      "title": "Sketcher: Trim does not work with an external line and a circle",
+      "source_url": "https://github.com/FreeCAD/FreeCAD/issues/24238",
+      "labels": [
+        "Type: Bug",
+        "Mod: Sketcher",
+        "Good first issue",
+        "Status: Confirmed"
+      ],
+      "reactions": 1,
+      "created_at": "2025-09-25T19:31:26Z",
+      "updated_at": "2026-05-06T11:04:59Z",
+      "need_score": 17.8,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue describes a specific geometric trim failure involving external lines and circles in the Sketcher workbench. While labeled as a good first issue and confirmed, resolving geometric intersection and trimming logic requires familiarity with CAD kernel interactions (OCC) and the Sketcher's trim tool implementation, which can be non-trivial for an outsider.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [
+        "Requires understanding of FreeCAD Sketcher trim algorithm and OCC geometry intersection logic"
+      ],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Sketcher's Trim tool fails when trimming normal sketch geometry (such as a full circle) against external geometry references, deleting the entire geometry rather than trimming it at the intersection point.",
+      "root_cause_hypothesis": "The intersection calculation in the Sketcher trim algorithm (e.g. within `SketchObject::trim` or the intersection search helper) only tests intersections between normal sketch geometry elements and ignores external geometry (`ExternalGeo` / negative index geometries), causing the algorithm to find no valid cutting intersections and delete the full circle.",
+      "suggested_approach": "Include external geometry elements when gathering intersecting curves for trimming, calculate the intersection points between the target geometry (the circle) and the external geometry curves, and use these intersection points as valid split/trim boundaries without modifying the external geometry itself.",
+      "likely_areas": [
+        "src/Mod/Sketcher/App/SketchObject.cpp",
+        "src/Mod/Sketcher/App/Sketch.cpp",
+        "src/Mod/Sketcher/Gui/EditModeTrimCoinManager.cpp",
+        "src/Mod/Sketcher/Gui/CommandCreateGeo.cpp"
+      ],
+      "prerequisites": [
+        "FreeCAD development environment set up and capable of building the Sketcher module",
+        "Understanding of Sketcher's geometry indexing (positive indices for internal sketch geometries, negative indices for external geometries) and OCC intersection algorithms"
+      ],
+      "implementation_steps": [
+        "Locate the trim intersection calculation routines in `src/Mod/Sketcher/App/SketchObject.cpp` (e.g., methods handling `trim`, `seekIntersectionPoints`, or equivalent).",
+        "Inspect how candidate intersecting geometries are collected; identify where external geometries (negative index geometries in `SketchObject::ExternalGeo`) are currently excluded or omitted.",
+        "Update the intersection detection logic so that intersections with external geometries are computed using OpenCASCADE intersection algorithms and added to the list of trim cutting points.",
+        "Ensure that when the target geometry is split or trimmed, new constraint attachments and vertex creation only modify the sketch's internal geometries and do not attempt to modify the read-only external geometry.",
+        "Handle the special case for full circles (converting circle to an arc between intersection points or trimming at the clicked segment).",
+        "Add unit/regression tests in `src/Mod/Sketcher/App/SketchObjectTest.py` verifying that trimming a circle against an external line correctly creates an arc bounded by the intersection."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-08-19T09:25:03.639175+00:00",
+      "processed_at": "2026-08-19T09:25:03.639175+00:00"
+    },
+    "27762": {
+      "repo": "FreeCAD/FreeCAD",
+      "number": 27762,
+      "title": "Part/PartDesign: General settings page is missing tooltips",
+      "source_url": "https://github.com/FreeCAD/FreeCAD/issues/27762",
+      "labels": [
+        "Mod: Part Design",
+        "Topic: User Interface",
+        "Good first issue",
+        "Documentation",
+        "Topic: Preferences",
+        "Type: Other"
+      ],
+      "reactions": 0,
+      "created_at": "2026-02-21T06:17:42Z",
+      "updated_at": "2026-05-30T04:09:46Z",
+      "need_score": 16.0,
+      "feasibility": "high",
+      "feasibility_reason": "Adding tooltips to UI widgets in a settings page is a straightforward task involving finding the relevant preference page UI/source files and adding standard tooltips to the controls.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "under_1h",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Several widgets and controls on the Part/PartDesign 'General' preferences page in FreeCAD lack descriptive tooltips, making options unclear to users.",
+      "root_cause_hypothesis": "The Qt Designer UI definition file (.ui) for the Part/PartDesign General preferences page does not have the 'toolTip' property defined for several input widgets and checkboxes.",
+      "suggested_approach": "Locate the UI file corresponding to the Part/PartDesign General preferences page, identify all controls/checkboxes/inputs lacking tooltips, and add clear, descriptive tooltip text directly in Qt Designer or the .ui XML definition.",
+      "likely_areas": [
+        "src/Mod/PartDesign/Gui/DlgSettingsPartDesignGeneral.ui",
+        "src/Mod/PartDesign/Gui/DlgSettingsPartDesignGeneral.cpp",
+        "src/Mod/Part/Gui/DlgSettingsGeneral.ui",
+        "src/Mod/Part/Gui/DlgSettingsGeneral.cpp"
+      ],
+      "prerequisites": [
+        "Ability to build FreeCAD from source or run a local dev environment with Qt tools",
+        "Qt Designer or a text editor to modify Qt .ui XML files",
+        "Understanding of Part and PartDesign workbench preferences and their functionality"
+      ],
+      "implementation_steps": [
+        "Locate the Qt Designer UI file for the Part/PartDesign General preferences page (e.g. `src/Mod/PartDesign/Gui/DlgSettingsPartDesignGeneral.ui` or `src/Mod/Part/Gui/DlgSettingsGeneral.ui`).",
+        "Inspect the UI file in Qt Designer or XML editor and compare against the settings shown under Edit -> Preferences -> Part/PartDesign -> General.",
+        "Draft concise and informative tooltip descriptions for all labels, check boxes, combo boxes, spin boxes, and other controls that currently lack tooltips.",
+        "Add the `<property name=\"toolTip\"><string>...</string></property>` entries to the respective widgets in the UI file.",
+        "Build and launch FreeCAD, navigate to Edit -> Preferences -> Part/PartDesign -> General, and verify that hovering over every setting widget displays the appropriate tooltip.",
+        "Ensure translation strings are properly marked/formatted according to FreeCAD's UI standards and submit a pull request."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-08-19T09:25:47.229701+00:00",
+      "processed_at": "2026-08-19T09:25:47.229701+00:00"
+    }
+  }
+}
