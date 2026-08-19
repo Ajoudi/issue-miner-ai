@@ -40,7 +40,8 @@
         "Add unit tests for LangfuseClient in tests/ utilizing pytest-httpserver to cover batch posting, JSON response parsing, non-2xx statuses, and timeout handling."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-06T01:49:49.214865+00:00"
+      "processed_at": "2026-08-06T01:49:49.214865+00:00",
+      "first_seen": "2026-08-06T01:49:49.214865+00:00"
     },
     "15751": {
       "repo": "langfuse/langfuse",
@@ -81,7 +82,8 @@
         "Validate the end-to-end setup procedure from a clean environment state."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-09T01:04:28.524664+00:00"
+      "processed_at": "2026-08-09T01:04:28.524664+00:00",
+      "first_seen": "2026-08-09T01:04:28.524664+00:00"
     },
     "15372": {
       "repo": "langfuse/langfuse",
@@ -126,7 +128,8 @@
         "Write unit and integration tests verifying that third-party spans are masked when only 'mask' is configured and that custom 'mask_otel_spans' handlers still take precedence."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-17T00:46:09.317579+00:00"
+      "processed_at": "2026-08-17T00:46:09.317579+00:00",
+      "first_seen": "2026-08-17T00:46:09.317579+00:00"
     },
     "597": {
       "repo": "langfuse/langfuse",
@@ -172,7 +175,8 @@
         "Update documentation and examples demonstrating Langfuse OpenAI Assistants integration."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-14T01:12:44.312537+00:00"
+      "processed_at": "2026-08-14T01:12:44.312537+00:00",
+      "first_seen": "2026-08-14T01:12:44.312537+00:00"
     }
   }
 }

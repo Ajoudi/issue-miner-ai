@@ -42,7 +42,8 @@
         "Build the Ollama binary and run govulncheck -mode=binary on the produced artifact to confirm all reported Go standard library CVEs are resolved."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-05T05:59:31.463069+00:00"
+      "processed_at": "2026-08-05T05:59:31.463069+00:00",
+      "first_seen": "2026-08-05T05:59:31.463069+00:00"
     },
     "15669": {
       "repo": "ollama/ollama",
@@ -82,7 +83,8 @@
         "Verify pulling the updated model tags on Linux and Windows environments without encountering HTTP 412 errors."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-07T02:12:37.778074+00:00"
+      "processed_at": "2026-08-07T02:12:37.778074+00:00",
+      "first_seen": "2026-08-07T02:12:37.778074+00:00"
     }
   }
 }

@@ -40,7 +40,21 @@ def needs_processing(store: dict[str, Any], issue: dict[str, Any], reprocess_aft
 
 
 def upsert(store: dict[str, Any], blueprint: dict[str, Any]) -> None:
-    blueprint = {**blueprint, "processed_at": datetime.now(timezone.utc).isoformat()}
+    """Write a blueprint, preserving when we FIRST saw the issue.
+
+    `processed_at` moves every time we re-analyze (every `reprocess_after_days`),
+    so it answers "how fresh is this analysis?" — not "when did this appear on
+    the site?". `first_seen` is set once and never overwritten, so a routine
+    refresh can't masquerade as a new find. Legacy records predating this field
+    inherit their existing `processed_at`, which is the closest truth we have.
+    """
+    existing = store["issues"].get(str(blueprint["number"])) or {}
+    now = datetime.now(timezone.utc).isoformat()
+    blueprint = {
+        **blueprint,
+        "first_seen": existing.get("first_seen") or existing.get("processed_at") or now,
+        "processed_at": now,
+    }
     store["issues"][str(blueprint["number"])] = blueprint
 
 

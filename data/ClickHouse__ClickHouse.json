@@ -43,7 +43,8 @@
         "Add unit tests and integration tests covering REST catalog configurations with custom `s3.endpoint` values and mixed scheme URIs."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-11T01:07:40.092772+00:00"
+      "processed_at": "2026-08-11T01:07:40.092772+00:00",
+      "first_seen": "2026-08-11T01:07:40.092772+00:00"
     },
     "76518": {
       "repo": "ClickHouse/ClickHouse",
@@ -85,7 +86,8 @@
         "Add functional SQL tests in `tests/queries/0_stateless/` reproducing `INSERT INTO ... SELECT col AS x, col AS y FROM s3Cluster(...)` to prevent regressions."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-12T01:14:46.815991+00:00"
+      "processed_at": "2026-08-12T01:14:46.815991+00:00",
+      "first_seen": "2026-08-12T01:14:46.815991+00:00"
     },
     "58479": {
       "repo": "ClickHouse/ClickHouse",
@@ -132,7 +134,8 @@
         "Add test cases or manual verification using unreachable/broken S3 endpoints to confirm that client cancellation (Ctrl+C / KILL QUERY) terminates the query promptly."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-13T01:17:17.691618+00:00"
+      "processed_at": "2026-08-13T01:17:17.691618+00:00",
+      "first_seen": "2026-08-13T01:17:17.691618+00:00"
     },
     "58928": {
       "repo": "ClickHouse/ClickHouse",
@@ -174,7 +177,8 @@
         "Add or update integration tests in `tests/integration/` verifying that malformed Protobuf and ProtobufSingle messages are skipped up to `kafka_skip_broken_messages` while valid messages are correctly inserted."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-12T01:15:27.165562+00:00"
+      "processed_at": "2026-08-12T01:15:27.165562+00:00",
+      "first_seen": "2026-08-12T01:15:27.165562+00:00"
     },
     "87575": {
       "repo": "ClickHouse/ClickHouse",
@@ -217,7 +221,8 @@
         "Add a regression test in `tests/queries/0_stateless/` using the reproduction query with `ORDER BY ... LIMIT ... OFFSET` and `query_plan_optimize_lazy_materialization = 1`."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-19T00:49:59.293416+00:00"
+      "processed_at": "2026-08-19T00:49:59.293416+00:00",
+      "first_seen": "2026-08-19T00:49:59.293416+00:00"
     }
   }
 }

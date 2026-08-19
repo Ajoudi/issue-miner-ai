@@ -237,7 +237,8 @@ def build_record(issue: dict[str, Any], repo: str, tri: dict[str, Any], bp: dict
         "source_url": issue["html_url"],          # constructed by us, not the model
         "labels": issue.get("labels", []),
         "reactions": issue.get("reactions", 0),
-        "updated_at": issue.get("updated_at"),
+        "created_at": issue.get("created_at"),   # "opened" date shown on the card
+        "updated_at": issue.get("updated_at"),   # last upstream activity
         "need_score": issue.get("_score"),
         **tri,
         **bp,

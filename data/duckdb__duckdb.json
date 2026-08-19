@@ -43,7 +43,8 @@
         "Add SQL regression tests and Python tests for `CREATE VIEW ... AS ...` statements using prepared parameters (e.g. parameter in table functions like `read_csv(?)` or WHERE clauses)."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-08T01:02:53.421511+00:00"
+      "processed_at": "2026-08-08T01:02:53.421511+00:00",
+      "first_seen": "2026-08-08T01:02:53.421511+00:00"
     },
     "16785": {
       "repo": "duckdb/duckdb",
@@ -83,7 +84,8 @@
         "Add test cases reproducing multi-table schema with FK constraints in test/sql/copy_database/."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-08T01:03:01.166473+00:00"
+      "processed_at": "2026-08-08T01:03:01.166473+00:00",
+      "first_seen": "2026-08-08T01:03:01.166473+00:00"
     },
     "11779": {
       "repo": "duckdb/duckdb",
@@ -129,7 +131,8 @@
         "Add or update unit and integration tests covering home directory path resolution across platforms."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-09T01:05:25.499898+00:00"
+      "processed_at": "2026-08-09T01:05:25.499898+00:00",
+      "first_seen": "2026-08-09T01:05:25.499898+00:00"
     },
     "14242": {
       "repo": "duckdb/duckdb",
@@ -169,7 +172,8 @@
         "Add SQL logic tests in test/sql/aggregate/aggregates/ testing bitstring_agg with NULLs, empty inputs, and UNION ALL queries."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-09T01:05:53.501995+00:00"
+      "processed_at": "2026-08-09T01:05:53.501995+00:00",
+      "first_seen": "2026-08-09T01:05:53.501995+00:00"
     },
     "7168": {
       "repo": "duckdb/duckdb",
@@ -211,7 +215,8 @@
         "Add SQL test cases covering self-referencing multi-row inserts, trees/graphs inserted in a single statement, and multi-chunk INSERT operations."
       ],
       "confidence": "medium",
-      "processed_at": "2026-08-11T01:07:10.765126+00:00"
+      "processed_at": "2026-08-11T01:07:10.765126+00:00",
+      "first_seen": "2026-08-11T01:07:10.765126+00:00"
     },
     "11817": {
       "repo": "duckdb/duckdb",
@@ -257,7 +262,8 @@
         "Run unit and regression tests including `test/sql/copy/s3/hive_partitioned_write_s3.test_slow` to verify that OOM is prevented without degrading throughput on non-partitioned single file writes."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-19T00:48:00.897240+00:00"
+      "processed_at": "2026-08-19T00:48:00.897240+00:00",
+      "first_seen": "2026-08-19T00:48:00.897240+00:00"
     }
   }
 }
