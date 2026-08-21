@@ -1,6 +1,6 @@
 {
   "repo": "duckdb/duckdb",
-  "generated_at": "2026-08-19T09:14:54.625286+00:00",
+  "generated_at": "2026-08-21T00:49:42.377383+00:00",
   "issues": {
     "13069": {
       "repo": "duckdb/duckdb",
@@ -264,6 +264,51 @@
       "confidence": "high",
       "processed_at": "2026-08-19T00:48:00.897240+00:00",
       "first_seen": "2026-08-19T00:48:00.897240+00:00"
+    },
+    "14124": {
+      "repo": "duckdb/duckdb",
+      "number": 14124,
+      "title": "DROP TABLE does not reduce database size",
+      "source_url": "https://github.com/duckdb/duckdb/issues/14124",
+      "labels": [
+        "under review"
+      ],
+      "reactions": 11,
+      "created_at": "2024-09-25T18:21:43Z",
+      "updated_at": "2026-03-03T13:53:36Z",
+      "need_score": 40.8,
+      "feasibility": "high",
+      "feasibility_reason": "The issue describes a well-defined behavioral question regarding SQLite/DuckDB-style storage engines where dropping a table does not immediately release space back to the OS or shrink the file size due to free list management or checkpointing requirements, which is a known and understandable database storage behavior rather than an opaque bug.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Dropping a table in DuckDB does not immediately reduce the database file size or mark blocks as free/truncated in `PRAGMA database_size`.",
+      "root_cause_hypothesis": "DuckDB's block allocation and storage manager marks dropped table data for reclamation/reuse, but file truncation or physical block freeing often requires a checkpoint or specific storage cleanup steps. In some versions or transaction states, dropped blocks might not be immediately returned to the OS via file truncation if they are not at the tail of the file or if an automatic checkpoint hasn't been triggered.",
+      "suggested_approach": "Investigate `SingleFileBlockManager` and `MetadataManager` block deallocation logic upon `DROP TABLE` and `CHECKPOINT`. Verify whether dropped blocks are correctly marked in the free list and if file truncation (`Truncate`) is attempted on checkpointing when trailing blocks become free.",
+      "likely_areas": [
+        "src/storage/storage_manager.cpp",
+        "src/storage/single_file_block_manager.cpp",
+        "src/storage/checkpoint_manager.cpp",
+        "src/storage/table/column_data.cpp",
+        "src/main/database_manager.cpp"
+      ],
+      "prerequisites": [
+        "Familiarity with DuckDB's storage engine architecture, especially `SingleFileBlockManager`, block allocation, and checkpointing mechanisms",
+        "Understanding of `PRAGMA database_size` outputs and disk block management"
+      ],
+      "implementation_steps": [
+        "Reproduce the issue using SQL/Python tests creating a table, inserting data, running `DROP TABLE test;` followed by `CHECKPOINT;` and observing `PRAGMA database_size`.",
+        "Inspect `SingleFileBlockManager::MarkBlockAsFree` and verify if `DROP TABLE` invokes block deallocation for the associated column and row group blocks upon transaction commit.",
+        "Verify whether the `FreeList` correctly tracks freed blocks and check whether `SingleFileBlockManager::Truncate` or file-shrinking logic is invoked during checkpointing when blocks at the end of the file are freed.",
+        "Ensure that `PRAGMA database_size` reflects updated `used_blocks` vs `free_blocks` after table drop and checkpoint.",
+        "Add regression test cases in `test/sql/storage/` verifying that dropping tables correctly updates block usage metrics and frees/truncates storage space where applicable."
+      ],
+      "confidence": "medium",
+      "first_seen": "2026-08-21T00:49:42.377324+00:00",
+      "processed_at": "2026-08-21T00:49:42.377324+00:00"
     }
   }
 }
