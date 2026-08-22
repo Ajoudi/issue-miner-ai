@@ -1,6 +1,6 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-08-21T00:49:14.287329+00:00",
+  "generated_at": "2026-08-22T00:44:50.017526+00:00",
   "issues": {
     "15280": {
       "repo": "langfuse/langfuse",
@@ -53,37 +53,42 @@
         "feat-onboarding"
       ],
       "reactions": 1,
-      "updated_at": "2026-08-08T06:54:41Z",
+      "created_at": "2026-08-04T04:23:58Z",
+      "updated_at": "2026-08-19T23:39:24Z",
       "need_score": 12.8,
       "feasibility": "high",
-      "feasibility_reason": "The issue clearly identifies a broken documentation path in CONTRIBUTING.md regarding ClickHouse installation on macOS and proposes a straightforward fix using Docker or updated instructions.",
+      "feasibility_reason": "The issue clearly identifies a broken installation path in CONTRIBUTING.md and suggests replacing it with a docker-based shimming approach already used in CI, which is straightforward to document and fix.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "under_1h",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Local development setup documentation in CONTRIBUTING.md is broken on macOS and Linux due to outdated installation paths for ClickHouse and golang-migrate. Additionally, AI agents lack a dedicated setup skill to bootstrap the repository from scratch.",
-      "root_cause_hypothesis": "Homebrew clickhouse casks are deprecated on macOS, golang-migrate on Linux requires specific build tags (clickhouse) not currently documented, and existing agent skills only cover downstream workflows rather than initial environment bootstrapping.",
-      "suggested_approach": "Update CONTRIBUTING.md with working installation instructions for ClickHouse (using docker exec shim or updated packages) and golang-migrate across OS platforms. Introduce a setup-local-dev agent skill and a preflight script to reliably validate and execute local environment setup.",
+      "problem_summary": "Local developer onboarding and agent workflows fail because CONTRIBUTING.md has broken ClickHouse and golang-migrate installation instructions (especially on macOS/Linux), and no dedicated agent skill exists in .agents/skills/ to guide an automated or manual zero-to-running-stack setup.",
+      "root_cause_hypothesis": "CONTRIBUTING.md relies on deprecated external package installation steps (e.g. brew cask for ClickHouse binary and untagged golang-migrate distributions lacking ClickHouse drivers) rather than leveraging existing Docker container execution shims or explicit Go build tags. Furthermore, agent skills only cover runtime diagnosing/seeding after dependencies and env files are already initialized, leaving the initial bootstrap phase uncovered.",
+      "suggested_approach": "Update CONTRIBUTING.md with accurate cross-platform installation instructions (using a Docker shim script or container exec for ClickHouse, and explicit install instructions with ClickHouse build tags for golang-migrate). Create a preflight check script to validate host environment dependencies, and author a new `setup-local-dev` agent skill under `.agents/skills/`.",
       "likely_areas": [
         "CONTRIBUTING.md",
+        ".agents/skills/setup-local-dev/SKILL.md",
         ".agents/skills/",
-        "scripts/"
+        "scripts/preflight.sh",
+        "package.json"
       ],
       "prerequisites": [
-        "Docker runtime running locally",
-        "Node.js, pnpm, and Go installed on host"
+        "Docker & Docker Compose running locally",
+        "Node.js and pnpm (via Corepack)",
+        "Understanding of existing .agents/skills conventions and scripts/seed/doctor commands"
       ],
       "implementation_steps": [
-        "Update CONTRIBUTING.md with correct golang-migrate installation commands (including -tags clickhouse for Go installs on Linux) and updated ClickHouse CLI guidance.",
-        "Add a preflight verification script under scripts/ to check Node.js, pnpm, Docker daemon status, and CLI tools before running dev commands.",
-        "Create the setup-local-dev agent skill under .agents/skills/ to guide agentic setup including dependency checks, .env creation, container startup, and database migrations in the exact required order.",
-        "Validate the end-to-end setup procedure from a clean environment state."
+        "Update CONTRIBUTING.md Development Setup section: document the lightweight Docker exec wrapper/shim for ClickHouse CLI instead of the deprecated brew cask / 800MB binary, and add cross-platform golang-migrate instructions specifying the `clickhouse` build tag (`go install -tags clickhouse ...` or brew on macOS).",
+        "Implement a standalone preflight shell script (e.g. `scripts/preflight.sh`) that checks Node.js version, pnpm availability, Docker daemon status, golang-migrate CLI presence, and ClickHouse CLI accessibility (or provides the shim) prior to running pnpm install or seed scripts.",
+        "Add a npm script in `package.json` (such as `pnpm preflight`) to allow easy execution of environment checks.",
+        "Create the new agent skill `.agents/skills/setup-local-dev/SKILL.md` documenting the ordered bootstrap workflow: preflight checks, environment configuration (.env.dev), container initialization (`infra:dev:up`), database migrations, and chaining to existing `seed-test-data`.",
+        "Test the bootstrap process end-to-end on clean environments (macOS and Linux) following the updated CONTRIBUTING.md and skill definition to verify `pnpm run seed -- doctor` succeeds."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-09T01:04:28.524664+00:00",
-      "first_seen": "2026-08-09T01:04:28.524664+00:00"
+      "first_seen": "2026-08-09T01:04:28.524664+00:00",
+      "processed_at": "2026-08-22T00:44:50.017462+00:00"
     },
     "15372": {
       "repo": "langfuse/langfuse",

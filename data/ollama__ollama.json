@@ -1,6 +1,6 @@
 {
   "repo": "ollama/ollama",
-  "generated_at": "2026-08-21T00:47:58.044019+00:00",
+  "generated_at": "2026-08-22T00:44:07.864749+00:00",
   "issues": {
     "14233": {
       "repo": "ollama/ollama",
@@ -11,39 +11,40 @@
         "bug"
       ],
       "reactions": 7,
+      "created_at": "2026-02-13T10:41:57Z",
       "updated_at": "2026-02-25T02:34:59Z",
       "need_score": 31.6,
       "feasibility": "high",
-      "feasibility_reason": "The issue points out that released binaries contain CVEs because the Go toolchain/standard library version used in the build is outdated, and explicitly suggests upgrading the Go version in the Dockerfile and go.mod. Bumping the Go version is a straightforward and self-contained configuration/dependency update.",
+      "feasibility_reason": "The issue points directly to upgrading the Go toolchain version in the Dockerfile and go.mod to resolve high severity CVEs in standard library dependencies.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "under_1h",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Released Ollama binaries contain high and critical severity vulnerabilities in standard library packages (such as crypto/tls, os, net/url, and archive/zip) because they are built using an outdated Go compiler toolchain (Go 1.24.1).",
-      "root_cause_hypothesis": "The build configuration files, including go.mod, Dockerfile, build scripts, and GitHub Actions workflows, specify or pin an older Go version (Go 1.24.1) that contains unpatched Go standard library vulnerabilities.",
-      "suggested_approach": "Upgrade the Go toolchain version across the codebase (in go.mod, Dockerfiles, and CI workflows) to a patched Go release (e.g., Go 1.24.13, 1.25.7, or 1.26.0+), recompile the binary, and verify with govulncheck that standard library vulnerabilities are resolved.",
+      "problem_summary": "Prebuilt binaries contain high-severity standard library vulnerabilities (e.g., in crypto/tls, os, net/url, and archive/zip) because they were compiled using an outdated Go toolchain version.",
+      "root_cause_hypothesis": "The Go version pinned in go.mod, Dockerfile, and CI/release workflows specifies a Go release with known standard library vulnerabilities.",
+      "suggested_approach": "Upgrade the Go toolchain directive in go.mod, Dockerfile, and GitHub Actions workflow files to a patched Go release that resolves the reported CVEs.",
       "likely_areas": [
         "go.mod",
         "Dockerfile",
-        ".github/workflows/",
-        "scripts/"
+        ".github/workflows/"
       ],
       "prerequisites": [
-        "Go toolchain installed",
-        "govulncheck utility installed (go install golang.org/x/vuln/cmd/govulncheck@latest)"
+        "Installed Go toolchain matching the target updated version",
+        "Installed govulncheck utility (`go install golang.org/x/vuln/cmd/govulncheck@latest`)"
       ],
       "implementation_steps": [
-        "Update the go directive and toolchain directive in go.mod to the desired non-vulnerable Go version.",
-        "Update Dockerfile and related container build scripts to use the corresponding Go base image version.",
-        "Audit .github/workflows/ for actions/setup-go or hardcoded Go version strings and update them to match the new version.",
-        "Run go mod tidy and execute the full test suite to ensure compatibility with the updated Go version.",
-        "Build the Ollama binary and run govulncheck -mode=binary on the produced artifact to confirm all reported Go standard library CVEs are resolved."
+        "Update the `go` and/or `toolchain` directives in `go.mod` to the target patched Go version.",
+        "Update any Go version references or base image tags in `Dockerfile`.",
+        "Update the Go version specified in GitHub Actions CI and release workflow files under `.github/workflows/` (e.g., `actions/setup-go` step configurations).",
+        "Run `go mod tidy` and build the binary locally using the updated Go toolchain.",
+        "Run `govulncheck -mode=binary bin/ollama` (or on the compiled target) to verify that all standard library vulnerabilities have been resolved.",
+        "Execute test suites (`go test ./...`) to ensure compatibility and lack of regressions with the updated Go version."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-05T05:59:31.463069+00:00",
-      "first_seen": "2026-08-05T05:59:31.463069+00:00"
+      "first_seen": "2026-08-05T05:59:31.463069+00:00",
+      "processed_at": "2026-08-22T00:44:07.864648+00:00"
     },
     "15669": {
       "repo": "ollama/ollama",
@@ -54,37 +55,41 @@
         "bug"
       ],
       "reactions": 16,
+      "created_at": "2026-04-18T12:21:04Z",
       "updated_at": "2026-06-09T04:42:30Z",
       "need_score": 54.8,
       "feasibility": "high",
-      "feasibility_reason": "The issue describes a simple metadata labeling bug where specific models are incorrectly marked or restricted, resulting in an incorrect error message on non-macOS platforms. This likely involves updating model definitions or registry entries in the backend configuration.",
+      "feasibility_reason": "The issue involves updating metadata or model tags in a model registry or configuration file where specific models are incorrectly flagged or filtered regarding platform requirements (macOS/MLX). This is a localized and straightforward fix.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "under_1h",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Pulling standard non-MLX model variants (such as qwen3.5, qwen3.6, and gemma4 variants) on Linux or Windows fails with HTTP 412 'this model requires macOS'.",
-      "root_cause_hypothesis": "Model manifests hosted on the registry (or the server-side manifest validation logic) incorrectly assign macOS/Metal backend requirements to non-MLX GGUF model tags.",
-      "suggested_approach": "Audit and correct model manifest tags in the registry database/manifest repository to remove OS restrictions from standard GGUF variants, and verify pull validation logic in the Ollama client/server.",
+      "problem_summary": "Users on Linux/Windows receive HTTP 412 'this model requires macOS' when attempting to pull certain non-MLX model tags (such as Qwen and Gemma variants) from the Ollama model registry.",
+      "root_cause_hypothesis": "The model registry manifests or server-side model routing metadata incorrectly tagged these specific model quantization/variant tags with an Apple Silicon/macOS runtime constraint (e.g. MLX format requirement or OS metadata check) instead of standard GGUF multi-platform compatibility, or the manifest distribution pipeline misclassified the model architecture tags during indexing.",
+      "suggested_approach": "Audit and correct the tag metadata and manifest manifests in the model library registry backend for the affected model tags, and verify/update client-side manifest compatibility checking logic to ensure non-MLX/standard GGUF models are not gated on macOS.",
       "likely_areas": [
-        "server/registry",
-        "server/manifest",
-        "model registry backend"
+        "ollama/ollama model registry / backend manifest database",
+        "server/routes.go",
+        "server/download.go",
+        "cmd/interactive.go"
       ],
       "prerequisites": [
-        "Access or repository control over Ollama model manifest definitions",
-        "Understanding of Ollama pull manifest architecture and OS restriction headers"
+        "Access to the model catalog/registry metadata management tools and build pipelines",
+        "Test environments on both Linux and macOS to verify model manifest downloads and pull behavior"
       ],
       "implementation_steps": [
-        "Audit registry model manifests for qwen3.5, qwen3.6, and gemma4 tags to locate invalid OS/architecture constraint metadata.",
-        "Update the manifest publishing pipeline and existing manifest tags to ensure non-MLX GGUF models do not declare macOS restrictions.",
-        "Review server pull validation logic (e.g. server/pull.go or registry handlers) to ensure client OS checks correctly parse model capabilities.",
-        "Verify pulling the updated model tags on Linux and Windows environments without encountering HTTP 412 errors."
+        "Identify all affected model tags in the registry (e.g., qwen3.5:35b-a3b-coding-bf16, qwen3.6:35b-a3b-coding-bf16, nvfp4/mxfp8 tags, gemma4 tags).",
+        "Inspect the manifest descriptors and headers returned by the registry server for these tags to check if the 'os' or platform requirement fields are erroneously set to 'darwin' or 'mlx'.",
+        "Fix the backend model registry tagging / manifest generation pipeline so that standard GGUF weights are marked as platform-independent (or include linux/amd64 and windows/amd64).",
+        "Inspect client-side pull handling in Ollama codebase (e.g., in server/download.go and manifest parsing) to ensure platform requirement errors are descriptive and that valid cross-platform manifests are properly requested.",
+        "Republish/re-index the corrected manifests in the Ollama registry.",
+        "Verify using `ollama pull` on Linux x86_64/Nvidia machines to ensure the models download and run without HTTP 412 errors."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-07T02:12:37.778074+00:00",
-      "first_seen": "2026-08-07T02:12:37.778074+00:00"
+      "first_seen": "2026-08-07T02:12:37.778074+00:00",
+      "processed_at": "2026-08-22T00:43:57.620203+00:00"
     }
   }
 }

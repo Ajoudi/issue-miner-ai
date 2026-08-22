@@ -1,6 +1,6 @@
 {
   "repo": "ClickHouse/ClickHouse",
-  "generated_at": "2026-08-21T00:51:31.995377+00:00",
+  "generated_at": "2026-08-22T00:46:55.479023+00:00",
   "issues": {
     "80561": {
       "repo": "ClickHouse/ClickHouse",
@@ -87,7 +87,9 @@
       ],
       "confidence": "high",
       "processed_at": "2026-08-12T01:14:46.815991+00:00",
-      "first_seen": "2026-08-12T01:14:46.815991+00:00"
+      "first_seen": "2026-08-12T01:14:46.815991+00:00",
+      "resolved": true,
+      "resolved_at": "2026-08-22T00:46:44.870065+00:00"
     },
     "58479": {
       "repo": "ClickHouse/ClickHouse",
