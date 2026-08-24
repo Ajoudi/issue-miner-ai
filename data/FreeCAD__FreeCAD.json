@@ -1,6 +1,6 @@
 {
   "repo": "FreeCAD/FreeCAD",
-  "generated_at": "2026-08-19T09:28:05.504192+00:00",
+  "generated_at": "2026-08-24T00:51:41.898491+00:00",
   "issues": {
     "24238": {
       "repo": "FreeCAD/FreeCAD",
@@ -102,6 +102,56 @@
       "confidence": "high",
       "first_seen": "2026-08-19T09:25:47.229701+00:00",
       "processed_at": "2026-08-19T09:25:47.229701+00:00"
+    },
+    "19709": {
+      "repo": "FreeCAD/FreeCAD",
+      "number": 19709,
+      "title": "Measurement: Error when clicking on measure label only on DXF import",
+      "source_url": "https://github.com/FreeCAD/FreeCAD/issues/19709",
+      "labels": [
+        "Type: Bug",
+        "File format: DXF",
+        "Status: Confirmed",
+        "Help wanted",
+        "Priority: High",
+        "Mod: Measurement"
+      ],
+      "reactions": 0,
+      "created_at": "2025-02-19T14:51:47Z",
+      "updated_at": "2026-03-23T09:00:28Z",
+      "need_score": 18.0,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue provides clear reproduction steps and a stack trace indicating a segmentation fault in Gui::SoFCUnifiedSelection::setSelection when clicking a measure label on a DXF import. However, debugging GUI selection handlers and the interaction with imported DXF geometry might require some familiarity with FreeCAD's Inventor/Coin3D integration and selection mechanisms.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "FreeCAD crashes with a segmentation fault in Gui::SoFCUnifiedSelection::setSelection when a user clicks on a measurement label in the 3D viewer.",
+      "root_cause_hypothesis": "When the user clicks on a 3D measurement label, the selection event is handled by SoFCUnifiedSelection. The picked path resolves to an internal measurement Coin node (or an object without a standard document object / selection adapter), and SoFCUnifiedSelection attempts to dereference null or invalid object pointers/metadata when processing the picked element, accompanied by the log 'No measure handler available for geometry of module: Measure'.",
+      "suggested_approach": "Add null checks and guard against picking non-selectable measurement scene graph nodes in SoFCUnifiedSelection::setSelection and SoFCUnifiedSelection::handleEvent, or ensure measurement label Coin nodes are explicitly marked non-pickable / non-selectable for standard document selection passes.",
+      "likely_areas": [
+        "src/Gui/SoFCUnifiedSelection.cpp",
+        "src/Gui/SoFCUnifiedSelection.h",
+        "src/Mod/Measure/Gui/ViewProviderMeasure.cpp",
+        "src/Mod/Measure/Gui/ViewProviderMeasure.h"
+      ],
+      "prerequisites": [
+        "Build environment for FreeCAD with Coin3D, Qt, and Python bindings enabled.",
+        "A test DXF file or generic CAD model reproducing measurement creation in the Measure workbench."
+      ],
+      "implementation_steps": [
+        "Reproduce the crash in a debug build by creating a measurement with the Measure tool and clicking directly on the resulting measurement label in the 3D viewport.",
+        "Inspect the stack frame in `Gui::SoFCUnifiedSelection::setSelection` and `handleEvent` to identify which pointer dereference or index lookup is causing the SIGSEGV when a measurement label node is picked.",
+        "Add null checks and valid-object validation in `SoFCUnifiedSelection` for picked paths that lack a backing `App::DocumentObject` or `Gui::ViewProvider`.",
+        "Check measurement Coin nodes (like text / dimension labels in `Mod/Measure`) and verify if their pick style should be set to `SoPickStyle::UNPICKABLE` or handled gracefully if selected.",
+        "Investigate and handle the warning 'No measure handler available for geometry of module: Measure' to ensure measurement entities do not recursively attempt to measure themselves or fail silently without crashing.",
+        "Test clicking measurement labels across different geometry types (DXF 2D shapes, 3D solids, empty space) to confirm the crash is eliminated and selection behaves as expected."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-08-24T00:51:41.898426+00:00",
+      "processed_at": "2026-08-24T00:51:41.898426+00:00"
     }
   }
 }

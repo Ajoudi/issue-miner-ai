@@ -1,6 +1,6 @@
 {
   "repo": "ollama/ollama",
-  "generated_at": "2026-08-23T00:50:45.410856+00:00",
+  "generated_at": "2026-08-24T00:46:42.194788+00:00",
   "issues": {
     "14233": {
       "repo": "ollama/ollama",
@@ -90,6 +90,50 @@
       "confidence": "high",
       "first_seen": "2026-08-07T02:12:37.778074+00:00",
       "processed_at": "2026-08-22T00:43:57.620203+00:00"
+    },
+    "2475": {
+      "repo": "ollama/ollama",
+      "number": 2475,
+      "title": "Request to add  leo-hessianai to ollama",
+      "source_url": "https://github.com/ollama/ollama/issues/2475",
+      "labels": [
+        "help wanted"
+      ],
+      "reactions": 6,
+      "created_at": "2024-02-13T14:50:03Z",
+      "updated_at": "2026-04-25T13:32:27Z",
+      "need_score": 29.8,
+      "feasibility": "high",
+      "feasibility_reason": "Adding support for a new model family in Ollama typically involves defining the correct chat template, stop tokens, and model architecture mappings in the codebase or providing an officially supported Modelfile configuration.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "under_1h",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Users are requesting support and correct Modelfile configurations for LeoLM's leo-hessianai models (7B, 13B, 70B), as running them currently results in severe hallucination and incoherent outputs.",
+      "root_cause_hypothesis": "The hallucination issues stem from using base completion models instead of instruction/chat-tuned checkpoints (e.g., leo-hessianai-7b-chat), missing or malformed ChatML prompt templates (newline placement and system prompt defaults), and missing stop token definitions.",
+      "suggested_approach": "Provide canonical Modelfile templates configured for LeoLM's chat/bilingual variants using proper ChatML prompt formatting and stop tokens, or ingest the official leo-hessianai model weights and metadata into Ollama's official model library.",
+      "likely_areas": [
+        "docs/modelfile.md",
+        "docs/import.md",
+        "template/template.go",
+        "Modelfiles/leo-hessianai"
+      ],
+      "prerequisites": [
+        "Access to Hugging Face repository LeoLM/leo-hessianai-*-chat or corresponding GGUF files from TheBloke/LeoLM",
+        "Local Ollama instance to test Modelfile generation, prompt formatting, and output quality"
+      ],
+      "implementation_steps": [
+        "Verify the model architecture and chat template specifications in `tokenizer_config.json` for `LeoLM/leo-hessianai-7b-chat` and `LeoLM/leo-hessianai-13b-chat-bilingual`.",
+        "Draft the standard ChatML Modelfile specifying the correct chat/bilingual GGUF source, correct ChatML template syntax (`<|im_start|>system\\n{{ .System }}<|im_end|>\\n<|im_start|>user\\n{{ .Prompt }}<|im_end|>\\n<|im_start|>assistant\\n`), and appropriate stop tokens (`<|im_end|>`, `<|im_start|>`).",
+        "Set default system instructions and sampling parameters (e.g. temperature, top_p) tailored to German/bilingual instruction following.",
+        "Build the model using `ollama create leo-hessianai -f Modelfile` and run test queries in German and English to ensure coherent generation without hallucination or infinite loops.",
+        "Document the recommended Modelfile configuration in community documentation or prepare the model definition for the Ollama library."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-08-24T00:46:42.194695+00:00",
+      "processed_at": "2026-08-24T00:46:42.194695+00:00"
     }
   }
 }

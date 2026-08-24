@@ -1,6 +1,6 @@
 {
   "repo": "duckdb/duckdb",
-  "generated_at": "2026-08-23T00:53:26.473536+00:00",
+  "generated_at": "2026-08-24T00:48:58.070847+00:00",
   "issues": {
     "13069": {
       "repo": "duckdb/duckdb",
@@ -143,37 +143,41 @@
         "reproduced"
       ],
       "reactions": 5,
+      "created_at": "2024-10-06T16:35:24Z",
       "updated_at": "2026-04-08T00:59:46Z",
       "need_score": 20.0,
       "feasibility": "high",
-      "feasibility_reason": "The issue provides a clear reproduction script showing that the `bitstring_agg` aggregate function fails when encountering NULL values or empty groups, which points directly to handling null inputs in the aggregate function implementation.",
+      "feasibility_reason": "The issue provides a clear reproduction script and points directly to a specific aggregate function (bitstring_agg) failing when encountering NULL values or empty groups. This is a localized bug in how the aggregate function handles null inputs or empty state extraction.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "bitstring_agg fails with a binder error ('Could not retrieve required statistics') when executed on expressions or subqueries containing NULL values or empty groups without explicit min and max parameters.",
-      "root_cause_hypothesis": "The bind function for bitstring_agg relies on column expression statistics to determine the minimum and maximum bounds of the bitstring buffer. When queries contain NULL values, UNION ALL, or empty groups, statistics propagation either returns missing/NULL bounds or fails to inspect the non-NULL stats, leading to binder errors.",
-      "suggested_approach": "Update the binding and statistics extraction logic for bitstring_agg to gracefully handle missing or NULL bounds during binding, ensuring NULL values are ignored during aggregate computation and proper fallback or statistic extraction handles subqueries with NULLs.",
+      "problem_summary": "Calling `bitstring_agg` with a single argument on queries with subqueries/unions containing NULL values or missing statistics fails during binding with a Binder Error requesting explicit min/max statistics.",
+      "root_cause_hypothesis": "The 1-argument overload of `bitstring_agg` relies on column statistics (min and max) resolved at bind time. When expressions involve subqueries, unions, or columns with incomplete/null-only statistics propagation, the binder cannot retrieve valid min/max bounds and fails immediately. Additionally, runtime state handling for `bitstring_agg` may not gracefully handle groups that contain only NULL values or empty sets when min/max are deduced.",
+      "suggested_approach": "Review the binder logic for `bitstring_agg` and statistics propagation. For the 1-argument overload, verify whether binder statistics fallback or execution-time dynamic min/max initialization is feasible, or ensure clear and accurate statistics propagation/error reporting. Ensure runtime aggregation handles NULL-only and empty groups without crashing or throwing invalid state errors.",
       "likely_areas": [
-        "src/function/aggregate/distributive/bitstring_agg.cpp",
+        "src/core_functions/aggregate/distributive/bitstring_agg.cpp",
+        "src/execution/operator/aggregate/physical_hash_aggregate.cpp",
+        "src/optimizer/statistics_propagator.cpp",
         "src/planner/binder/expression/bind_aggregate_expression.cpp"
       ],
       "prerequisites": [
-        "Ability to build DuckDB from source using CMake",
-        "Familiarity with DuckDB expression statistics and aggregate function binding"
+        "C++11/C++17 build environment for DuckDB (CMake, Ninja/Make, modern compiler)",
+        "DuckDB test suite framework (sqllogictest)"
       ],
       "implementation_steps": [
-        "Locate the bitstring_agg bind logic in src/function/aggregate/distributive/bitstring_agg.cpp.",
-        "Analyze how statistics (min/max) are retrieved from the input expression when implicit min/max arguments are used.",
-        "Update the statistic extraction to handle NULL bounds and missing statistics safely without failing expression binding when valid non-NULL bounds exist or can be inferred.",
-        "Ensure that runtime execution of bitstring_agg ignores NULL input values as expected for SQL aggregates.",
-        "Add SQL logic tests in test/sql/aggregate/aggregates/ testing bitstring_agg with NULLs, empty inputs, and UNION ALL queries."
+        "Reproduce the error using `SELECT bitstring_agg(arg) FROM (SELECT 1 AS arg UNION ALL SELECT NULL AS arg);` in DuckDB unit tests or sqllogictest.",
+        "Examine `bitstring_agg.cpp` to understand how the binder binds 1-argument vs 3-argument overloads using `BaseStatistics` / `NumericStats`.",
+        "Investigate statistics propagation for UNION ALL and NULL literals in `statistics_propagator.cpp` to check why min/max statistics are lost or marked invalid when NULL is present.",
+        "If stats cannot be known at bind time, consider whether `bitstring_agg` can support dynamic min/max accumulation or improve binder resolution when stats are available for non-null components.",
+        "Inspect the runtime aggregate execution (e.g. `BitstringAggOperation` / state update) to ensure NULL values are ignored as expected and empty or NULL-only groups produce NULL or empty bitstrings rather than throwing.",
+        "Add regression test cases in `test/sql/aggregate/aggregates/test_bitstring_agg.test` covering subqueries with NULLs, empty tables, and explicit/implicit min/max."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-09T01:05:53.501995+00:00",
-      "first_seen": "2026-08-09T01:05:53.501995+00:00"
+      "first_seen": "2026-08-09T01:05:53.501995+00:00",
+      "processed_at": "2026-08-24T00:48:58.070780+00:00"
     },
     "7168": {
       "repo": "duckdb/duckdb",

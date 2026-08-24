@@ -1,0 +1,57 @@
+{
+  "repo": "blender/blender",
+  "generated_at": "2026-08-24T00:52:22.891537+00:00",
+  "issues": {
+    "160373": {
+      "repo": "blender/blender",
+      "number": 160373,
+      "title": "Spreadsheet: Vector column auto fit width issue when component values differ greatly",
+      "source_url": "https://projects.blender.org/blender/blender/issues/160373",
+      "labels": [
+        "Interest/Geometry Nodes",
+        "Interest/User Interface",
+        "Meta/Good First Issue",
+        "Module/Nodes & Physics",
+        "Severity/Normal",
+        "Status/Confirmed",
+        "Type/Bug"
+      ],
+      "reactions": 0,
+      "created_at": "2026-06-19T06:40:03+02:00",
+      "updated_at": "2026-06-25T18:10:34+02:00",
+      "need_score": 16.0,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue clearly identifies a UI layout problem in the spreadsheet where vector column widths are calculated from the concatenated string rather than individual component widths. However, without direct access to the codebase UI drawing/layout code for spreadsheet columns, locating the exact file requires searching.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Spreadsheet vector/multi-component column auto-fit calculates column width by formatting the entire vector as a concatenated string. Because multi-component columns divide total space equally among components in the UI, an uneven distribution of component lengths (e.g. `1000000000, 0, 0`) leads to truncation of the widest component.",
+      "root_cause_hypothesis": "The column width estimation logic in the Spreadsheet editor (`estimate_max_column_width` or equivalent value-formatting calculation) evaluates the width of the whole concatenated string across components. When drawn, each sub-component gets an equal share of the column width (`total_width / num_components`), meaning the widest component requires `max(component_widths) * num_components` rather than `sum(component_widths)`.",
+      "suggested_approach": "Adjust the column width estimation logic for multi-component types (float2/3/4, int2/3, short2, color, quaternion) to measure the formatted string width of each component individually, find the maximum component width, and calculate the overall column width as `max_component_width * num_components` (plus any necessary spacing/margins).",
+      "likely_areas": [
+        "source/blender/editors/space_spreadsheet/spreadsheet_column.cc",
+        "source/blender/editors/space_spreadsheet/spreadsheet_column_values.cc",
+        "source/blender/editors/space_spreadsheet/spreadsheet_draw.cc",
+        "source/blender/editors/space_spreadsheet/spreadsheet_intern.hh"
+      ],
+      "prerequisites": [
+        "A working Blender C++ development build environment.",
+        "Understanding of Blender's Spreadsheet editor column drawing and auto-fitting logic."
+      ],
+      "implementation_steps": [
+        "Locate the column width estimation function in `source/blender/editors/space_spreadsheet/` (e.g., `estimate_max_column_width` or component drawing width calculation).",
+        "Identify how multi-component values (vectors, rotations, colors) are currently formatted and measured during column auto-fit.",
+        "Modify the measurement routine for composite data types to calculate the width of each individual sub-component string separately instead of measuring the concatenated vector string.",
+        "Set the estimated column component width to the maximum width found among all components multiplied by the component count, accounting for inter-component padding/separators.",
+        "Open the Spreadsheet editor, load a dataset with varying component lengths (e.g. `[1000000000, 0, 0]`), and double-click the column boundary to verify the auto-fit properly displays the longest component without truncation.",
+        "Test across various column data types (float3, int2, color, quaternion) and edge cases (negative values, standard float values) to ensure no regressions in layout or performance."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-08-24T00:52:22.891477+00:00",
+      "processed_at": "2026-08-24T00:52:22.891477+00:00"
+    }
+  }
+}
