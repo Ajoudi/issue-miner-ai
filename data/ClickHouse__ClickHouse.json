@@ -1,6 +1,6 @@
 {
   "repo": "ClickHouse/ClickHouse",
-  "generated_at": "2026-08-24T00:49:16.868746+00:00",
+  "generated_at": "2026-08-25T00:50:32.843545+00:00",
   "issues": {
     "80561": {
       "repo": "ClickHouse/ClickHouse",
@@ -225,6 +225,58 @@
       "confidence": "high",
       "processed_at": "2026-08-19T00:49:59.293416+00:00",
       "first_seen": "2026-08-19T00:49:59.293416+00:00"
+    },
+    "58662": {
+      "repo": "ClickHouse/ClickHouse",
+      "number": 58662,
+      "title": "Support defaults in Native format ",
+      "source_url": "https://github.com/ClickHouse/ClickHouse/issues/58662",
+      "labels": [
+        "help wanted",
+        "feature"
+      ],
+      "reactions": 14,
+      "created_at": "2024-01-10T15:34:36Z",
+      "updated_at": "2026-08-24T21:55:21Z",
+      "need_score": 50.2,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue requests adding a new data format 'NativeWithDefaults' similar to an existing 'RowBinaryWithDefaults' format. While the pattern exists elsewhere in the codebase, implementing a new format in ClickHouse involves deep C++ knowledge of serialization/deserialization routines, block processing, and format registries.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [
+        "Requires understanding the complex ClickHouse block input/output and format serialization internals."
+      ],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "ClickHouse's Native format currently requires all column values to be provided explicitly on the client side, making it impossible to let the server evaluate default expressions during insertion in Native format.",
+      "root_cause_hypothesis": "The Native input format strictly deserializes blocks containing full columns matching the provided structure and does not provide a mechanism to fill in omitted columns using server-side default expressions, unlike formats like RowBinaryWithDefaults.",
+      "suggested_approach": "Implement a new format 'NativeWithDefaults' (modeled after RowBinaryWithDefaults) by creating or adapting Native format processors that read incoming Native blocks with a subset of columns and evaluate server-side defaults for any missing columns based on table metadata.",
+      "likely_areas": [
+        "src/Processors/Formats/Impl/NativeBlockInputFormat.h",
+        "src/Processors/Formats/Impl/NativeBlockInputFormat.cpp",
+        "src/Processors/Formats/Impl/RowBinaryWithDefaultsBlockInputFormat.cpp",
+        "src/Formats/FormatFactory.cpp",
+        "src/Formats/registerFormats.cpp",
+        "tests/queries/0_stateless"
+      ],
+      "prerequisites": [
+        "Familiarity with ClickHouse's Native block serialization format",
+        "Understanding of ClickHouse IInputFormat / IOutputFormat processors and FormatFactory registration",
+        "Review of PR/issue #50854 (RowBinaryWithDefaults) for the defaults evaluation pattern via evaluateMissingDefaults"
+      ],
+      "implementation_steps": [
+        "Review the implementation of RowBinaryWithDefaultsBlockInputFormat and how it utilizes ActionsDAG / evaluateMissingDefaults to populate missing columns.",
+        "Add format registration for 'NativeWithDefaults' in FormatFactory (with appropriate FormatSettings flags or dedicated input/output format classes).",
+        "Implement NativeWithDefaultsBlockInputFormat inheriting from or wrapping NativeBlockInputFormat, modifying block reading so that columns missing in the input stream are generated and filled according to table default expressions.",
+        "Ensure NativeWithDefaults handles cases where block column headers differ from the expected schema by filling missing columns and correctly ignoring/reordering columns if needed.",
+        "Optionally implement NativeWithDefaultsBlockOutputFormat if output behavior needs to distinguish default handling, or alias it to standard Native output format.",
+        "Write comprehensive stateless tests in tests/queries/0_stateless to verify inserting tables with default, materialized, and alias columns using FORMAT NativeWithDefaults.",
+        "Add documentation for NativeWithDefaults format under docs/en/interfaces/formats/."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-08-25T00:50:32.843478+00:00",
+      "processed_at": "2026-08-25T00:50:32.843478+00:00"
     }
   }
 }
