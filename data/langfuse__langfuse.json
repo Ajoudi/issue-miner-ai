@@ -1,6 +1,6 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-08-28T08:10:12.729717+00:00",
+  "generated_at": "2026-08-29T04:58:19.391560+00:00",
   "issues": {
     "15280": {
       "repo": "langfuse/langfuse",
@@ -147,41 +147,41 @@
         "integration-openai"
       ],
       "reactions": 6,
+      "created_at": "2023-11-29T11:23:29Z",
       "updated_at": "2026-08-12T13:31:36Z",
       "need_score": 17.8,
-      "feasibility": "medium",
-      "feasibility_reason": "The issue requests adding native support for tracking OpenAI Assistants runs, threads, and steps within the Langfuse SDK. While the requirements are clearly listed, it requires designing a robust integration wrapper around OpenAI's beta endpoints and handling asynchronous API calls to fetch run steps, which introduces moderate complexity without prior codebase context.",
+      "feasibility": "high",
+      "feasibility_reason": "The issue requests adding native tracing support for the OpenAI Assistants API. The requirements are clearly specified, detailing which endpoints and methods need to be captured, and the codebase likely already contains similar instrumentation patterns for OpenAI SDK integrations.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "The Langfuse OpenAI Python SDK integration lacks native tracing support for OpenAI's Assistants API (beta threads, runs, messages, and run steps).",
-      "root_cause_hypothesis": "The existing OpenAI wrapper in langfuse-python only instruments standard chat completions, completions, and embedding endpoints, omitting OpenAI's `beta.assistants`, `beta.threads`, and related run/message execution pipelines.",
-      "suggested_approach": "Extend the OpenAI SDK instrumentation module (patcher/wrapper) to intercept OpenAI Assistant beta calls (`beta.threads.runs.create`, `beta.threads.runs.create_and_poll`, etc.), map thread messages and run step executions to Langfuse traces, spans, and generations, and fetch run steps if necessary to capture complete execution context.",
+      "problem_summary": "The Langfuse OpenAI Python SDK integration currently lacks native instrumentation for OpenAI Assistants API (beta endpoints for assistants, threads, messages, runs, and run steps).",
+      "root_cause_hypothesis": "The existing OpenAI wrapper/patching logic primarily wraps standard completion, chat completion, and embedding endpoints and does not intercept or track calls under `openai.beta.assistants`, `openai.beta.threads`, `openai.beta.threads.runs`, or resolve nested run steps and message contexts.",
+      "suggested_approach": "Extend the OpenAI integration wrapper to wrap beta Assistant and Thread APIs (`beta.assistants`, `beta.threads`, `beta.threads.messages`, `beta.threads.runs`, and `beta.threads.runs.steps`), translating runs and run steps into Langfuse traces, spans, and generations.",
       "likely_areas": [
         "langfuse/openai.py",
-        "langfuse/decorators",
+        "langfuse/openai/__init__.py",
         "tests/test_openai.py",
         "tests/test_openai_assistants.py"
       ],
       "prerequisites": [
-        "Valid OpenAI API key and Langfuse test credentials/mock server",
-        "Understanding of OpenAI Assistants API v2 lifecycle (Assistant -> Thread -> Message -> Run -> Run Steps)"
+        "Review OpenAI Assistants API v2/v1 lifecycle and SDK patterns in openai-python.",
+        "Review existing Langfuse OpenAI wrapper structure (sync and async monkey-patching / proxying)."
       ],
       "implementation_steps": [
-        "Identify entrypoints to wrap within OpenAI's client hierarchy, specifically `client.beta.threads.runs.create`, `create_and_poll`, `stream`, and thread/message operations.",
-        "Implement monkey patching or wrapper proxies for synchronous and asynchronous beta assistant methods in `langfuse.openai`.",
-        "Create logic to establish a Langfuse Trace corresponding to the assistant run/thread session, associating metadata such as assistant ID and thread ID.",
-        "Implement polling/retrieval handlers to fetch intermediate run steps (`client.beta.threads.runs.steps.list`) and thread messages upon run completion, mapping tool calls to Langfuse Spans and model calls to Langfuse Generations.",
-        "Support streaming mode if assistant run streaming is utilized.",
-        "Add unit and integration tests covering assistant creation, thread execution, run step capture, and error handling.",
-        "Update documentation and examples demonstrating Langfuse OpenAI Assistants integration."
+        "Inspect the existing wrapper implementation in `langfuse/openai.py` (or corresponding module) to understand how client methods and attributes are wrapped for sync and async clients.",
+        "Define wrapper handlers for `client.beta.assistants.create`, `client.beta.threads.create`, `client.beta.threads.messages.create`, `client.beta.threads.runs.create`, `client.beta.threads.runs.create_and_poll`, and `client.beta.threads.runs.stream`.",
+        "Implement logic to map a Run to a Langfuse Trace/Span, associating the Assistant ID, Thread ID, and Run ID.",
+        "Implement polling/retrieval or stream-hooking for `client.beta.threads.runs.steps.list` to capture tool calls, message creations, and token usage as nested generations and spans within the run trace.",
+        "Ensure both synchronous and asynchronous OpenAI client calls (`AsyncOpenAI`) are properly wrapped and trace states are finalized on run completion/failure.",
+        "Add comprehensive unit and integration tests mocking or exercising OpenAI Assistant runs and verifying the resulting Langfuse traces, spans, and generation metadata."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-14T01:12:44.312537+00:00",
-      "first_seen": "2026-08-14T01:12:44.312537+00:00"
+      "first_seen": "2026-08-14T01:12:44.312537+00:00",
+      "processed_at": "2026-08-29T04:58:19.391485+00:00"
     }
   }
 }

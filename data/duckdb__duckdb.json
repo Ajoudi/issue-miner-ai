@@ -1,6 +1,6 @@
 {
   "repo": "duckdb/duckdb",
-  "generated_at": "2026-08-25T00:49:01.559604+00:00",
+  "generated_at": "2026-08-29T05:02:26.320121+00:00",
   "issues": {
     "13069": {
       "repo": "duckdb/duckdb",
@@ -95,44 +95,42 @@
       "labels": [
         "under review"
       ],
-      "reactions": 11,
+      "reactions": 12,
+      "created_at": "2024-04-23T05:07:35Z",
       "updated_at": "2026-04-06T11:02:58Z",
-      "need_score": 38.8,
+      "need_score": 41.6,
       "feasibility": "medium",
-      "feasibility_reason": "While the issue clearly asks to follow the XDG Base Directory Specification for files like .duckdb and .duckdb_history, implementing this requires identifying all places in the C++/C codebase where configuration or history files are written to the home directory, handling backward compatibility or fallback mechanisms if XDG variables are not set, and confirming cross-platform behavior (especially since XDG is primarily Linux/Unix, while DuckDB supports Windows and macOS).",
+      "feasibility_reason": "Implementing XDG Base Directory Specification support requires identifying all places where configuration, history, and cache files are created in the home directory and updating them to respect XDG environment variables (XDG_CONFIG_HOME, XDG_DATA_HOME, etc.), while preserving backward compatibility for existing user directories.",
       "self_contained": true,
       "needs_special_environment": false,
-      "blockers": [
-        "Need to ensure cross-platform compatibility doesn't break Windows or macOS standard directory locations",
-        "Potential backward compatibility considerations for existing user config/history paths"
-      ],
+      "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "DuckDB creates configuration, extension storage, and shell history files directly under the user's `$HOME` directory (e.g., `~/.duckdb` and `~/.duckdb_history`) instead of following the XDG Base Directory Specification on Linux/Unix systems.",
-      "root_cause_hypothesis": "Path resolution logic for local state, extensions, and history files relies on hardcoded home directory prepends (e.g., `~/.duckdb` and `~/.duckdb_history`) across the C++ core and CLI shell instead of querying standard environment variables like `$XDG_CONFIG_HOME`, `$XDG_DATA_HOME`, and `$XDG_STATE_HOME`.",
-      "suggested_approach": "Implement standard XDG directory lookup helper functions for Linux/POSIX platforms with fallback defaults (`~/.config/duckdb`, `~/.local/share/duckdb`, `~/.local/state/duckdb`). Update extension path, configuration path, and shell history path resolutions to use these XDG paths, while maintaining backwards compatibility by checking if legacy `~/.duckdb` directories exist.",
+      "problem_summary": "DuckDB CLI and extension management store files and directories directly in the user's home directory ($HOME/.duckdb, $HOME/.duckdb_history) instead of following standard directory specifications such as the XDG Base Directory Specification on Linux/Unix.",
+      "root_cause_hypothesis": "Path resolution for user state, extensions, and CLI history hardcodes or defaults to `$HOME/.duckdb` and `$HOME/.duckdb_history` without inspecting XDG environment variables (such as $XDG_CONFIG_HOME, $XDG_DATA_HOME, or $XDG_STATE_HOME) on Unix-like operating systems.",
+      "suggested_approach": "Update path resolution for configuration, extension storage, and history files to check XDG environment variables on non-Windows platforms (or appropriate platform-specific defaults). Ensure backward compatibility by checking existing legacy paths in `$HOME` before defaulting to new standard paths, or provide automatic fallback/migration logic.",
       "likely_areas": [
-        "src/main/config.cpp",
+        "src/main/extension/extension_helper.cpp",
         "src/common/file_system.cpp",
+        "src/include/duckdb/common/file_system.hpp",
         "tools/shell/shell.c",
-        "src/include/duckdb/main/config.hpp"
+        "tools/shell/linenoise/linenoise.cpp"
       ],
       "prerequisites": [
-        "Familiarity with C++ and C file path resolution and platform-specific environment checks in DuckDB.",
-        "Understanding of the XDG Base Directory Specification ($XDG_CONFIG_HOME, $XDG_DATA_HOME, $XDG_STATE_HOME)."
+        "Review DuckDB extension directory resolution logic and CLI history handling.",
+        "Review XDG Base Directory Specification for appropriate directories ($XDG_CONFIG_HOME for config, $XDG_DATA_HOME for extensions/shared data, $XDG_STATE_HOME or $XDG_DATA_HOME for history)."
       ],
       "implementation_steps": [
-        "Identify all locations in the C++ core and CLI shell where `~/.duckdb`, `~/.duckdb_history`, and extension directory paths are resolved.",
-        "Add helper methods in system/file utility modules to resolve XDG data, config, and state paths with appropriate environment variable lookups and fallbacks.",
-        "Update extension installation/loading path logic to use $XDG_DATA_HOME/duckdb or fallback to ~/.local/share/duckdb (or check legacy ~/.duckdb if present).",
-        "Update CLI shell history file resolution to store history in $XDG_STATE_HOME/duckdb/history or fallback to ~/.local/state/duckdb/history.",
-        "Ensure backward compatibility by verifying legacy paths (~/.duckdb) and using them if present before falling back to XDG defaults.",
-        "Add or update unit and integration tests covering home directory path resolution across platforms."
+        "Add helper functions in FileSystem/OS helper utilities to resolve platform-specific config/data/state directory paths respecting XDG environment variables (e.g., $XDG_DATA_HOME defaulting to ~/.local/share, $XDG_CONFIG_HOME defaulting to ~/.config, $XDG_STATE_HOME defaulting to ~/.local/state).",
+        "Update extension installation and lookup paths in `ExtensionHelper` to prefer the XDG data directory (e.g., `$XDG_DATA_HOME/duckdb/extensions` or `$XDG_CONFIG_HOME/duckdb`) while preserving fallback support for existing `$HOME/.duckdb/extensions` directories to prevent breaking existing installations.",
+        "Update the DuckDB CLI (`shell.c` / history handling) to store `.duckdb_history` under `$XDG_STATE_HOME/duckdb/history` or `$XDG_DATA_HOME/duckdb/history`, with a fallback to `~/.duckdb_history` if the legacy file already exists.",
+        "Ensure non-Linux platforms (Windows, macOS) maintain their expected or standard conventions without unintended regressions.",
+        "Add unit and integration tests verifying directory resolution with and without XDG environment variables set, as well as fallback behavior when legacy paths exist."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-09T01:05:25.499898+00:00",
-      "first_seen": "2026-08-09T01:05:25.499898+00:00"
+      "first_seen": "2026-08-09T01:05:25.499898+00:00",
+      "processed_at": "2026-08-29T05:02:26.320054+00:00"
     },
     "14242": {
       "repo": "duckdb/duckdb",
