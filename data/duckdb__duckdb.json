@@ -1,6 +1,6 @@
 {
   "repo": "duckdb/duckdb",
-  "generated_at": "2026-08-30T02:42:13.075618+00:00",
+  "generated_at": "2026-08-31T02:34:43.061581+00:00",
   "issues": {
     "13069": {
       "repo": "duckdb/duckdb",
@@ -55,37 +55,42 @@
         "reproduced"
       ],
       "reactions": 4,
+      "created_at": "2025-03-22T16:25:00Z",
       "updated_at": "2026-04-09T22:44:09Z",
       "need_score": 21.2,
-      "feasibility": "high",
-      "feasibility_reason": "The issue provides clear reproduction steps and points to a specific internal command COPY FROM DATABASE failing on foreign key constraints during cross-database copying, which is localized and debuggable.",
+      "feasibility": "medium",
+      "feasibility_reason": "The issue involves a specific constraint error during database copying between attached databases via COPY FROM DATABASE. While the report describes a reproducible scenario, foreign key evaluation order or validation during bulk copy across databases may require deep knowledge of DuckDB's storage and execution engine internals.",
       "self_contained": true,
       "needs_special_environment": false,
-      "blockers": [],
+      "blockers": [
+        "Understanding DuckDB storage and transaction catalog dependency order during cross-database COPY operations"
+      ],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Executing COPY FROM DATABASE fails with a foreign key constraint error when target tables are populated out of order relative to their foreign key relationships.",
-      "root_cause_hypothesis": "During COPY FROM DATABASE execution, statements for copying table data are constructed or executed without ordering tables by foreign key dependency (topological sort), causing child tables to be populated before their referenced parent tables exist or hold data.",
-      "suggested_approach": "Implement topological sorting of tables based on foreign key dependencies in the COPY FROM DATABASE binder logic (bind_copy_database.cpp), ensuring parent tables are fully created and inserted into before child tables with foreign key constraints.",
+      "problem_summary": "`COPY FROM DATABASE` fails with a foreign key constraint violation error when copying databases containing tables with foreign key references.",
+      "root_cause_hypothesis": "During `COPY FROM DATABASE`, tables are created and/or populated without topologically ordering tables according to foreign key dependencies. When data is inserted into referencing (child) tables before the referenced (parent) tables have their rows inserted, foreign key validation fails.",
+      "suggested_approach": "Topologically sort catalog table entries based on their foreign key dependencies prior to generating/executing copy statements for table creation and data transfer, ensuring parent tables are populated before child tables.",
       "likely_areas": [
         "src/planner/binder/statement/bind_copy_database.cpp",
+        "src/execution/operator/persistent/physical_copy_database.cpp",
         "src/catalog/catalog_entry/table_catalog_entry.cpp",
-        "test/sql/copy_database/copy_database_fk.test"
+        "test/sql/copy_database/"
       ],
       "prerequisites": [
-        "Ability to build DuckDB C++ codebase and run SQLLogictest suite for COPY FROM DATABASE."
+        "Understand DuckDB's catalog dependency tracking and foreign key constraint representation.",
+        "Understand the AST and binder pipeline for `COPY FROM DATABASE` in `bind_copy_database.cpp`."
       ],
       "implementation_steps": [
-        "Analyze bind_copy_database.cpp where copying statements for catalog table entries are constructed.",
-        "Extract Foreign Key constraint relationships between tables from the source database catalog.",
-        "Perform a topological sort on the tables using their FK dependency graph so referenced tables precede referencing tables.",
-        "Ensure circular or self-referential foreign key dependencies are handled appropriately (e.g. deferring constraint checks if necessary or inserting in correct dependency phases).",
-        "Add test cases reproducing multi-table schema with FK constraints in test/sql/copy_database/."
+        "Inspect `src/planner/binder/statement/bind_copy_database.cpp` to understand how table entries are gathered, ordered, and transformed into create/insert operations.",
+        "Implement or reuse a topological sorting helper (similar to existing catalog dependency ordering or `ReorderTableEntries`) that builds a dependency graph of tables connected via foreign key constraints.",
+        "Sort the table list such that referenced (parent) tables appear before referencing (child) tables during table creation and row insertion.",
+        "Check how edge cases such as self-referencing foreign keys, cyclic references, and composite keys are handled during database copy; if necessary, ensure foreign key checks can be deferred or constraints attached after data loading.",
+        "Add regression test cases under `test/sql/copy_database/` covering multiple foreign keys across tables, multi-level FK dependency chains, and parallel execution."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-08T01:03:01.166473+00:00",
-      "first_seen": "2026-08-08T01:03:01.166473+00:00"
+      "first_seen": "2026-08-08T01:03:01.166473+00:00",
+      "processed_at": "2026-08-31T02:34:43.061510+00:00"
     },
     "11779": {
       "repo": "duckdb/duckdb",
