@@ -1,6 +1,6 @@
 {
   "repo": "FreeCAD/FreeCAD",
-  "generated_at": "2026-08-30T02:44:46.980115+00:00",
+  "generated_at": "2026-09-01T02:58:32.657646+00:00",
   "issues": {
     "24238": {
       "repo": "FreeCAD/FreeCAD",
@@ -152,6 +152,106 @@
       "confidence": "high",
       "first_seen": "2026-08-24T00:51:41.898426+00:00",
       "processed_at": "2026-08-24T00:51:41.898426+00:00"
+    },
+    "28930": {
+      "repo": "FreeCAD/FreeCAD",
+      "number": 28930,
+      "title": "Measurement: Length measured with `Std_Measure` is attached to geometric center, not midpoint",
+      "source_url": "https://github.com/FreeCAD/FreeCAD/issues/28930",
+      "labels": [
+        "Topic: User Interface",
+        "Type: Feature",
+        "Good first issue",
+        "Mod: Measurement"
+      ],
+      "reactions": 0,
+      "created_at": "2026-03-31T19:41:19Z",
+      "updated_at": "2026-04-10T10:56:11Z",
+      "need_score": 16.0,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue clearly identifies the problem and expected behavior in the measurement tool, but locating where the calculation uses the geometric center versus the curve midpoint requires navigating the C++ codebase of the Std_Measure tool.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "When measuring the length of a curved edge or spline with Std_Measure, the annotation label/dimension line anchor attaches to the geometric center (barycenter/bounding center) rather than the midpoint lying directly on the curve.",
+      "root_cause_hypothesis": "The measurement calculation for edge length queries the center of mass (e.g., via `BRepGProp` center of mass or bounding box center) or a similar centroid calculation instead of evaluating the point on the curve at parameter `(u_start + u_end) / 2` or at half of the edge's total arc length.",
+      "suggested_approach": "Update the point/placement calculation in the measurement code for edge length measurements to evaluate the point at the parametric midpoint or arc-length midpoint of the edge/curve using OpenCASCADE curve evaluation utilities (e.g. `BRepAdaptor_Curve` or `GCPnts_AbscissaPoint`), ensuring the annotation anchor sits directly on the curve.",
+      "likely_areas": [
+        "src/Mod/Measure/Gui/ViewProviderMeasure.cpp",
+        "src/Mod/Measure/App/Measurement.cpp",
+        "src/Mod/Measure/App/MeasureLength.cpp",
+        "src/Gui/MeasurementPy.cpp",
+        "src/Gui/ViewProviderMeasureDistance.cpp"
+      ],
+      "prerequisites": [
+        "Build FreeCAD from source with OpenCASCADE (OCC) development headers and Qt support enabled.",
+        "Understand OpenCASCADE curve parameterization (`BRepAdaptor_Curve`, `GeomAdaptor_Curve`, `GCPnts_AbscissaPoint`)."
+      ],
+      "implementation_steps": [
+        "Search the Measure module and Gui measurement commands for the calculation of the position/anchor point for length measurements of TopoDS_Edge and curve objects.",
+        "Identify where the barycenter or center of mass is currently computed (such as `GProp_GProps` / `BRepGProp::LinearProperties` or center point computation).",
+        "Modify the calculation for edge/curve length measurement to compute the curve's midpoint: retrieve the first and last curve parameters (or use arc length parameterization via `GCPnts_AbscissaPoint`), evaluate the 3D point at the midpoint parameter using OCC's `Value()` or `D0()` method.",
+        "Handle edge cases such as closed/periodic curves, zero-length edges, and trimmed curves properly.",
+        "Rebuild FreeCAD and verify using Std_Measure on various non-straight curves (splines, circles, arcs, ellipses, complex NURBS edges) to ensure annotations sit on the curve itself.",
+        "Run existing measurement unit and GUI tests to ensure no regressions for straight edge length or other measurement types."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-09-01T02:57:55.675679+00:00",
+      "processed_at": "2026-09-01T02:57:55.675679+00:00"
+    },
+    "30833": {
+      "repo": "FreeCAD/FreeCAD",
+      "number": 30833,
+      "title": "TechDraw: Keyboard navigation of the Section Plane is chaotic",
+      "source_url": "https://github.com/FreeCAD/FreeCAD/issues/30833",
+      "labels": [
+        "Mod: TechDraw",
+        "Topic: User Interface",
+        "Type: Feature",
+        "Good first issue"
+      ],
+      "reactions": 0,
+      "created_at": "2026-06-17T02:44:24Z",
+      "updated_at": "2026-07-24T16:08:54Z",
+      "need_score": 16.0,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue describes a Qt tab-order problem in a TechDraw task panel or dialog. While fixing tab orders in Qt UI files or Python/C++ dialogs is usually straightforward, identifying the exact file and widget hierarchy without prior codebase knowledge may take some investigation.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [
+        "Locating the specific UI definition or code responsible for the Section Plane dialog/task panel"
+      ],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Keyboard Tab/Shift-Tab navigation across input fields in TechDraw's Section Plane task panel follows an erratic, non-intuitive sequence.",
+      "root_cause_hypothesis": "The tab stop order in the Qt UI file (.ui) or programmatic `setTabOrder` chain for the Section Plane task panel widget was not explicitly configured, causing Qt to default to creation order or layout geometry which does not match the visual top-to-bottom / logical input sequence.",
+      "suggested_approach": "Inspect the Section Plane UI definition file in Qt Designer or code, define an explicit and intuitive tab order (tabstops) linking input fields from top to bottom and left to right, and verify focus behavior during keyboard navigation.",
+      "likely_areas": [
+        "src/Mod/TechDraw/Gui/TaskSectionView.ui",
+        "src/Mod/TechDraw/Gui/TaskSectionView.cpp",
+        "src/Mod/TechDraw/Gui/TaskComplexSection.ui",
+        "src/Mod/TechDraw/Gui/TaskComplexSection.cpp"
+      ],
+      "prerequisites": [
+        "Working FreeCAD development environment with Qt6/Qt5 and Qt Designer",
+        "Basic understanding of Qt tab stop ordering and FreeCAD TechDraw TaskPanel architecture"
+      ],
+      "implementation_steps": [
+        "Locate the UI definition files corresponding to the Section Plane task panel (e.g., TaskSectionView.ui, TaskComplexSection.ui, or related dialog UI files in src/Mod/TechDraw/Gui/).",
+        "Open the UI file in Qt Designer and inspect the `<tabstops>` order using the Tab Order editing tool (or check if tab order is set programmatically in the C++ task panel class).",
+        "Rearrange the tab stops into a logical top-down, left-to-right sequence covering all interactive controls (spinboxes, line edits, dropdowns, check boxes, and action buttons).",
+        "Ensure any dynamic widgets or sub-widgets embedded at runtime maintain proper `QWidget::setTabOrder` relationships.",
+        "Build FreeCAD and open the TechDraw workbench.",
+        "Launch the Section Plane tool and verify that pressing Tab and Shift-Tab smoothly transitions focus across all fields in the expected sequential order.",
+        "Test with other keyboard shortcuts (Enter/Escape) and ensure accessibility remains intact."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-09-01T02:58:32.657594+00:00",
+      "processed_at": "2026-09-01T02:58:32.657594+00:00"
     }
   }
 }
