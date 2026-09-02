@@ -1,6 +1,6 @@
 {
   "repo": "ollama/ollama",
-  "generated_at": "2026-09-01T02:47:56.650128+00:00",
+  "generated_at": "2026-09-02T02:08:11.552617+00:00",
   "issues": {
     "14233": {
       "repo": "ollama/ollama",
@@ -133,7 +133,9 @@
       ],
       "confidence": "high",
       "first_seen": "2026-08-24T00:46:42.194695+00:00",
-      "processed_at": "2026-08-24T00:46:42.194695+00:00"
+      "processed_at": "2026-08-24T00:46:42.194695+00:00",
+      "resolved": true,
+      "resolved_at": "2026-09-02T02:08:11.551740+00:00"
     }
   }
 }
