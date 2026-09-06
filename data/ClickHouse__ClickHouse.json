@@ -1,6 +1,6 @@
 {
   "repo": "ClickHouse/ClickHouse",
-  "generated_at": "2026-09-04T02:12:42.655998+00:00",
+  "generated_at": "2026-09-06T02:10:54.873997+00:00",
   "issues": {
     "80561": {
       "repo": "ClickHouse/ClickHouse",
@@ -12,39 +12,40 @@
         "comp-datalake"
       ],
       "reactions": 5,
+      "created_at": "2025-05-20T05:19:44Z",
       "updated_at": "2026-07-15T14:00:06Z",
       "need_score": 26.0,
       "feasibility": "medium",
-      "feasibility_reason": "The issue describes a clear bug involving path normalization when an Iceberg REST catalog /v1/config response includes s3.endpoint, causing duplicate prefix concatenation. However, fixing this requires understanding ClickHouse's internal Iceberg REST catalog integration and how metadata_location and data_location paths are resolved relative to endpoint configurations.",
+      "feasibility_reason": "The issue describes a clear bug where path resolution fails when s3.endpoint is present in the Iceberg REST catalog config, leading to a malformed S3 path. A capable developer can locate the Iceberg REST catalog configuration and path handling logic in the codebase, but understanding the exact URI normalization and path joining routines for Iceberg in ClickHouse requires domain-specific code navigation.",
       "self_contained": true,
       "needs_special_environment": false,
-      "blockers": [
-        "Familiarity with ClickHouse's Iceberg REST catalog implementation and path resolution logic."
-      ],
+      "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "When ClickHouse queries an Iceberg REST catalog that returns catalog config like `s3.endpoint`, `metadata_location` and `data_location` may have inconsistent URI schemes or endpoints (e.g., `s3://...` vs `http://...`). ClickHouse's metadata path calculation attempts a naive string prefix check (`metadata_location.starts_with(data_location)`), which fails due to prefix mismatch, leading to malformed double S3 path keys like `s3://examples/.../s3://examples/...`.",
-      "root_cause_hypothesis": "The metadata parsing logic in ClickHouse assumes `data_location` and `metadata_location` use identical string prefixes (e.g., both start with `s3://`). When `s3.endpoint` is configured in the Iceberg REST catalog response, `data_location` or the table endpoint prefix may differ from `metadata_location`, causing `starts_with` comparison to fail and appending the full `metadata_location` URI to the target key path.",
-      "suggested_approach": "Normalize `metadata_location` and `data_location` before resolving relative paths by stripping scheme prefixes (`s3://`, `http://`, `https://`) and host/endpoint prefixes, or by parsing both locations into bucket and object key components to reliably extract the relative path of the metadata file.",
+      "problem_summary": "When an Iceberg REST catalog provides S3 configuration including an `s3.endpoint`, ClickHouse fails to properly match and strip prefixes between `data_location` and `metadata_location`. This causes the full S3 URI to be appended to the object path, resulting in malformed object keys.",
+      "root_cause_hypothesis": "The Iceberg REST catalog client or storage engine checks `if (metadata_location.starts_with(data_location))` to obtain a relative metadata path. However, `data_location` may be transformed or prefixed with the configured endpoint (e.g. `http://minio:9000/bucket/...`), or have differing URI schemes (`s3://` vs endpoint URL schemes), while `metadata_location` remains a standard S3 URI (`s3://bucket/...`). Because the prefix check fails, ClickHouse treats the entire `metadata_location` URI as a relative key inside the bucket.",
+      "suggested_approach": "Normalize both `metadata_location` and `data_location` into S3 bucket and object key components before computing relative paths, or extract the S3 key directly from `metadata_location` based on URI parsing instead of relying on a raw string prefix check against `data_location`.",
       "likely_areas": [
-        "src/Storages/DataLake/IcebergMetadata.cpp",
-        "src/Storages/DataLake/IcebergRESTCatalog.cpp",
-        "src/Storages/StorageIceberg.cpp"
+        "src/Storages/StorageIceberg.cpp",
+        "src/Storages/ObjectStorage/DataLake/Iceberg",
+        "src/Common/S3/S3URI.cpp",
+        "src/Common/S3/S3URI.h"
       ],
       "prerequisites": [
-        "Set up a local ClickHouse development environment with C++ toolchain and tests.",
-        "Set up an Iceberg REST catalog (e.g. Apache Lakekeeper or Nessie) pointing to MinIO with custom endpoint config to reproduce the issue."
+        "MinIO and Iceberg REST catalog (Lakekeeper or Nessie) test environment or mocked REST catalog responses",
+        "Familiarity with ClickHouse's S3URI utility class and Iceberg metadata parsing"
       ],
       "implementation_steps": [
-        "Locate the path normalization logic in Iceberg metadata resolution where `metadata_location.starts_with(data_location)` is checked.",
-        "Implement a helper function to extract the relative S3 key from a location URL by stripping scheme protocols (e.g., `s3://`, `http://`, `https://`), host/port parts, and bucket names.",
-        "Update the metadata path calculation logic to use the helper function so that relative metadata keys are resolved properly regardless of endpoint or URI scheme differences between `data_location` and `metadata_location`.",
-        "Add unit tests and integration tests covering REST catalog configurations with custom `s3.endpoint` values and mixed scheme URIs."
+        "Locate the path resolution snippet performing `if (metadata_location.starts_with(data_location))` in the Iceberg REST catalog / datalake storage implementation.",
+        "Parse both `metadata_location` and `data_location` using `S3URI` or URI parsing helpers to extract bucket and object key parts, rather than doing naive string prefix matching.",
+        "Handle cases where `data_location` or catalog config specifies `s3.endpoint` with path-style access (e.g., MinIO `http://endpoint/bucket/path`) vs canonical S3 URIs (`s3://bucket/path`).",
+        "Ensure relative metadata path derivation compares keys within the same bucket or resolves `metadata_location` directly to its object key in the target bucket.",
+        "Add unit and integration tests covering REST catalog configurations that return custom `s3.endpoint` and `s3.path-style-access`."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-11T01:07:40.092772+00:00",
-      "first_seen": "2026-08-11T01:07:40.092772+00:00"
+      "first_seen": "2026-08-11T01:07:40.092772+00:00",
+      "processed_at": "2026-09-06T02:10:49.962848+00:00"
     },
     "76518": {
       "repo": "ClickHouse/ClickHouse",
@@ -277,6 +278,53 @@
       "confidence": "high",
       "first_seen": "2026-08-25T00:50:32.843478+00:00",
       "processed_at": "2026-08-25T00:50:32.843478+00:00"
+    },
+    "65251": {
+      "repo": "ClickHouse/ClickHouse",
+      "number": 65251,
+      "title": "Replicated database: Stuck DDL after a failed DROP DATABASE",
+      "source_url": "https://github.com/ClickHouse/ClickHouse/issues/65251",
+      "labels": [
+        "bug",
+        "comp-database-engines"
+      ],
+      "reactions": 1,
+      "created_at": "2024-06-13T20:44:25Z",
+      "updated_at": "2026-09-04T13:35:08Z",
+      "need_score": 14.8,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue describes a specific file name too long exception during DROP DATABASE on a replicated database engine, leading to a stuck DDL log in ZooKeeper/Keeper. While reproducible steps are provided, debugging distributed DDL state handling and filesystem path limitations in ClickHouse requires understanding complex database engine internals.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Dropping a Replicated database containing a table with a name close to the filesystem max filename length fails with 'File name too long' during metadata move to 'metadata_dropped', permanently stopping the DDL worker and stalling replication.",
+      "root_cause_hypothesis": "When dropping a table or database, ClickHouse moves metadata files into the 'metadata_dropped' directory using the format '<database>.<table_name>.<uuid>.sql'. For tables whose names are already near the filesystem limit (usually 255 bytes), prepending the database name and appending UUID and extension causes the filename to exceed NAME_MAX, throwing std::filesystem::filesystem_error. In DatabaseReplicated, unhandled or non-retriable exceptions during DROP DATABASE cause the DDL worker thread to terminate or set stop_flag without proper rollback or recovery, leaving subsequent DDL tasks stuck.",
+      "suggested_approach": "Shorten/hash the filename in 'metadata_dropped' when it exceeds filesystem filename limits (or use table UUID primarily in metadata_dropped), and ensure DatabaseReplicated DDL worker handles drop failures gracefully without getting stuck in an unrecoverable state.",
+      "likely_areas": [
+        "src/Databases/DatabaseReplicated.cpp",
+        "src/Databases/DatabaseReplicatedWorker.cpp",
+        "src/Databases/DatabaseCatalog.cpp",
+        "src/Databases/DatabaseOnDisk.cpp",
+        "src/Interpreters/InterpreterDropQuery.cpp"
+      ],
+      "prerequisites": [
+        "Reproduce the issue by creating a Replicated database with ClickHouse Keeper / ZooKeeper enabled.",
+        "Create a table with a ~240 character name and attempt to DROP DATABASE.",
+        "Verify the filesystem rename error and the resulting stuck DDL queue state."
+      ],
+      "implementation_steps": [
+        "Locate the logic that generates target file paths in the 'metadata_dropped' directory (in DatabaseCatalog / DatabaseOnDisk).",
+        "Implement filename truncation or hashing (e.g., if '<db>.<table_name>.<uuid>.sql' exceeds NAME_MAX or 255 bytes, truncate the table/db name component or use '<uuid>.sql' / '<hash>.<uuid>.sql') while preserving uniqueness.",
+        "Review DatabaseReplicated's DROP DATABASE DDL execution in DatabaseReplicated / DatabaseReplicatedWorker to ensure that if a fatal error occurs during execution, the worker thread state and stop_flag are handled appropriately rather than permanently wedging replication.",
+        "Check error handling in the DDL queue runner to avoid unrecoverable infinite loop halts on permanent filesystem errors.",
+        "Add functional/integration tests with long table names in DatabaseReplicated covering DROP TABLE and DROP DATABASE, and verifying subsequent DDL operations succeed."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-09-06T02:10:54.873773+00:00",
+      "processed_at": "2026-09-06T02:10:54.873773+00:00"
     }
   }
 }
