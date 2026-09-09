@@ -1,6 +1,6 @@
 {
   "repo": "duckdb/duckdb",
-  "generated_at": "2026-09-07T02:04:59.582538+00:00",
+  "generated_at": "2026-09-09T02:20:18.168618+00:00",
   "issues": {
     "13069": {
       "repo": "duckdb/duckdb",
@@ -234,43 +234,43 @@
         "under review"
       ],
       "reactions": 10,
+      "created_at": "2024-04-24T17:49:03Z",
       "updated_at": "2026-07-02T04:16:19Z",
       "need_score": 25.0,
       "feasibility": "medium",
-      "feasibility_reason": "The issue provides a clear reproduction script and narrows down the problem to partitioned copy to S3 consuming excessive memory, but fixing memory management in partitioned writes or S3 batching requires understanding internal streaming/buffering mechanisms of the storage extension and query engine.",
+      "feasibility_reason": "The issue describes an out-of-memory error during partitioned COPY to S3 with a clear reproduction script. However, fixing memory management and buffer pooling across parallel S3 uploads and partition writers can touch complex internal storage and streaming components.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [
-        "Requires debugging memory allocation during partitioned multi-file streaming uploads to S3."
+        "Requires debugging internal streaming/partitioned copy buffer allocation logic."
       ],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Performing a partitioned COPY TO S3 with Hive partitioning causes an Out-Of-Memory (OOM) error even with small datasets and a moderate number of partitions (e.g., 30 partitions).",
-      "root_cause_hypothesis": "When writing partitioned data to S3, multiple S3 file handles / writers are opened simultaneously (or kept open in memory). Each S3 file handle (S3WriteHandle / S3FileSystem multipart upload) allocates large default in-memory upload part buffers (e.g., 50-100 MiB per active file handle). When multiplied by the number of active partitions, memory usage exceeds the configured memory limit and triggers an allocation failure.",
-      "suggested_approach": "Adjust the buffer allocation mechanism for remote S3 file writers during partitioned copy, either by reducing default initial buffer sizes, dynamically scaling buffer sizes based on total active open files/memory limit, ensuring memory allocations are tracked and managed through DuckDB's BufferManager/Allocator, or flushing and closing partition files progressively / limiting concurrent active partition writers.",
+      "problem_summary": "Performing a partitioned COPY to S3 (e.g. PARTITION_BY) causes an out-of-memory error even on small datasets, scaling linearly with the number of open partitions.",
+      "root_cause_hypothesis": "When writing to S3, each open file handle uses a buffered multipart uploader that allocates several buffers (e.g., minimum 5MB-100MB per part or thread buffer) managed by the buffer manager or in-memory writer. When hive partitioning writes across multiple partitions concurrently, each partition holds open an active S3 multipart file handle and its associated buffer cache/queue simultaneously, multiplying memory consumption proportionally by the number of partitions.",
+      "suggested_approach": "Investigate `httpfs` S3 multipart write buffering and the partitioned write operator (`PhysicalPartitionedCopy` / `PartitionedFileWriter`). Ensure either: 1) S3 write buffers use a shared memory budget/pool across file writers instead of fixed unbounded allocations per writer; 2) S3 file handles gracefully cap active write buffers or flush/stream smaller parts; or 3) partition writers limit the number of concurrently open file handles, evicting/closing idle partition writers or sorting/batching inputs by partition key when remote filesystems are involved.",
       "likely_areas": [
         "extension/httpfs/s3fs.cpp",
         "extension/httpfs/include/s3fs.hpp",
-        "src/execution/operator/persistent/physical_copy_to_file.cpp",
-        "src/execution/operator/persistent/physical_batch_copy_to_file.cpp",
-        "test/sql/copy/s3/hive_partitioned_write_s3.test_slow"
+        "src/execution/operator/persistent/physical_partitioned_copy.cpp",
+        "src/common/types/partitioned_file_writer.cpp"
       ],
       "prerequisites": [
-        "DuckDB development environment with `httpfs` extension enabled and built",
-        "Local S3 mock (such as MinIO) or AWS S3 credentials configured for running remote copy tests"
+        "AWS credentials or local S3 emulator (e.g., MinIO) set up for running S3 tests.",
+        "DuckDB build with HTTPFS extension enabled (`BUILD_HTTPFS=1`)."
       ],
       "implementation_steps": [
-        "Reproduce the issue locally with MinIO or the existing `test_slow` suite by running a COPY TO S3 with 20-30 partitions under a strict `memory_limit`.",
-        "Profile memory allocations during partitioned COPY to S3 to determine if memory is held in S3WriteHandle's multipart upload buffers or in DuckDB's partitioned copy writer structures.",
-        "Verify whether S3 write buffer allocations register with DuckDB's Allocator / BufferManager or use unmanaged/over-allocated memory buffers per file handle.",
-        "Implement smaller initial part buffer sizing or make write buffer sizes dynamic based on concurrent open file count and global memory limits.",
-        "Ensure `HivePartitionedColumnData` or partition write operators properly limit the number of concurrently open write buffers or manage buffer flushing to prevent concurrent multipart buffer exhaustion.",
-        "Run unit and regression tests including `test/sql/copy/s3/hive_partitioned_write_s3.test_slow` to verify that OOM is prevented without degrading throughput on non-partitioned single file writes."
+        "Reproduce the OOM locally by running the `test/sql/copy/s3/hive_partitioned_write_s3.test_slow` test with an increased number of partitions (e.g. 30 partitions) under a restricted `memory_limit` using MinIO.",
+        "Inspect the S3 file write path in `extension/httpfs` (specifically S3 multipart writer / `S3WriteFile`) to determine how much memory is allocated per active file handle and whether allocations register against DuckDB's buffer manager.",
+        "Analyze the partitioned copy pipeline (`PhysicalPartitionedCopy`) to see whether all partition files remain open for writing throughout execution.",
+        "Implement a mechanism to reduce memory pressure, such as dynamically reducing initial/part buffer sizes when multiple concurrent remote writers exist, sharing the upload buffer pool across S3 handles, or LRU eviction/re-opening of partition file handles when writer count is high.",
+        "Verify that the buffer manager properly accounts for and limits memory used by multipart upload buffers.",
+        "Add regression test cases verifying partitioned writes to MinIO / S3 with tight memory limits and 30+ partitions."
       ],
       "confidence": "high",
-      "processed_at": "2026-08-19T00:48:00.897240+00:00",
-      "first_seen": "2026-08-19T00:48:00.897240+00:00"
+      "first_seen": "2026-08-19T00:48:00.897240+00:00",
+      "processed_at": "2026-09-09T02:20:02.434278+00:00"
     },
     "14124": {
       "repo": "duckdb/duckdb",

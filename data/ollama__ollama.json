@@ -1,6 +1,6 @@
 {
   "repo": "ollama/ollama",
-  "generated_at": "2026-09-08T02:14:40.408848+00:00",
+  "generated_at": "2026-09-09T02:18:09.788089+00:00",
   "issues": {
     "14233": {
       "repo": "ollama/ollama",
@@ -59,37 +59,36 @@
       "updated_at": "2026-06-09T04:42:30Z",
       "need_score": 54.8,
       "feasibility": "high",
-      "feasibility_reason": "The issue involves updating metadata or model tags in a model registry or configuration file where specific models are incorrectly flagged or filtered regarding platform requirements (macOS/MLX). This is a localized and straightforward fix.",
+      "feasibility_reason": "The issue points out specific model names that are incorrectly labeled or missing macOS/MLX constraints in the metadata/manifest handling on the server side, which is straightforward to fix by updating the model definitions or registry mapping.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "under_1h",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Users on Linux/Windows receive HTTP 412 'this model requires macOS' when attempting to pull certain non-MLX model tags (such as Qwen and Gemma variants) from the Ollama model registry.",
-      "root_cause_hypothesis": "The model registry manifests or server-side model routing metadata incorrectly tagged these specific model quantization/variant tags with an Apple Silicon/macOS runtime constraint (e.g. MLX format requirement or OS metadata check) instead of standard GGUF multi-platform compatibility, or the manifest distribution pipeline misclassified the model architecture tags during indexing.",
-      "suggested_approach": "Audit and correct the tag metadata and manifest manifests in the model library registry backend for the affected model tags, and verify/update client-side manifest compatibility checking logic to ensure non-MLX/standard GGUF models are not gated on macOS.",
+      "problem_summary": "Users on Linux/Windows attempting to pull certain non-MLX model tags (such as specific Qwen and Gemma variants) receive an HTTP 412 error stating 'this model requires macOS'.",
+      "root_cause_hypothesis": "The model manifests in the Ollama registry or the model upload pipeline have tagged these model artifacts with an OS constraint (e.g., darwin/macOS only or MLX platform metadata) despite containing GGUF/cross-platform weights, causing the registry manifest endpoint to return 412 Precondition Failed when queried from non-Darwin User-Agents or platforms.",
+      "suggested_approach": "Audit and correct the target model manifests on the Ollama registry to remove unintended OS platform restrictions, and verify the model build/ingestion automation to prevent non-MLX GGUF models from inheriting Apple/Darwin platform annotations.",
       "likely_areas": [
-        "ollama/ollama model registry / backend manifest database",
-        "server/routes.go",
-        "server/download.go",
-        "cmd/interactive.go"
+        "Ollama registry / model catalog manifest metadata",
+        "Model ingestion, quantization, and publishing scripts",
+        "server/routes.go or server/download.go (client manifest pull error handling and platform headers)"
       ],
       "prerequisites": [
-        "Access to the model catalog/registry metadata management tools and build pipelines",
-        "Test environments on both Linux and macOS to verify model manifest downloads and pull behavior"
+        "Access to the Ollama registry metadata / model publishing pipeline or administrative tools",
+        "Sample Linux environment with Ollama CLI to reproduce `ollama pull` behavior"
       ],
       "implementation_steps": [
-        "Identify all affected model tags in the registry (e.g., qwen3.5:35b-a3b-coding-bf16, qwen3.6:35b-a3b-coding-bf16, nvfp4/mxfp8 tags, gemma4 tags).",
-        "Inspect the manifest descriptors and headers returned by the registry server for these tags to check if the 'os' or platform requirement fields are erroneously set to 'darwin' or 'mlx'.",
-        "Fix the backend model registry tagging / manifest generation pipeline so that standard GGUF weights are marked as platform-independent (or include linux/amd64 and windows/amd64).",
-        "Inspect client-side pull handling in Ollama codebase (e.g., in server/download.go and manifest parsing) to ensure platform requirement errors are descriptive and that valid cross-platform manifests are properly requested.",
-        "Republish/re-index the corrected manifests in the Ollama registry.",
-        "Verify using `ollama pull` on Linux x86_64/Nvidia machines to ensure the models download and run without HTTP 412 errors."
+        "Inspect the manifest descriptors on registry.ollama.ai for the affected models (e.g., `qwen3.6:35b-a3b-coding-bf16`, `qwen3.6:27b-coding-nvfp4`, `gemma4:31b-coding-mtp-bf16`) to examine OS/architecture tags and layer annotations.",
+        "Verify the model weights format to ensure they are standard GGUF and do not strictly depend on Apple Silicon MLX runtimes.",
+        "Update the registry metadata or re-publish the manifests with platform-agnostic target descriptors (or correct linux/windows/darwin architectures).",
+        "Review the automated model ingestion/conversion toolchain to identify why non-MLX models are being tagged with macOS platform requirements.",
+        "Improve error reporting or client fallback in Ollama CLI if multiple platform variants exist but manifest resolution rejects non-matching platforms.",
+        "Verify the fix by running `ollama pull <model-tag>` on a Linux environment and confirming the manifest downloads successfully."
       ],
       "confidence": "high",
       "first_seen": "2026-08-07T02:12:37.778074+00:00",
-      "processed_at": "2026-08-22T00:43:57.620203+00:00"
+      "processed_at": "2026-09-09T02:18:09.787999+00:00"
     },
     "2475": {
       "repo": "ollama/ollama",
