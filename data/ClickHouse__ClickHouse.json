@@ -1,6 +1,6 @@
 {
   "repo": "ClickHouse/ClickHouse",
-  "generated_at": "2026-09-11T02:15:26.101205+00:00",
+  "generated_at": "2026-09-12T02:21:46.544124+00:00",
   "issues": {
     "80561": {
       "repo": "ClickHouse/ClickHouse",
@@ -9,43 +9,45 @@
       "source_url": "https://github.com/ClickHouse/ClickHouse/issues/80561",
       "labels": [
         "bug",
-        "comp-datalake"
+        "comp-datalake",
+        "external"
       ],
       "reactions": 5,
       "created_at": "2025-05-20T05:19:44Z",
-      "updated_at": "2026-07-15T14:00:06Z",
+      "updated_at": "2026-09-11T15:24:12Z",
       "need_score": 26.0,
       "feasibility": "medium",
-      "feasibility_reason": "The issue describes a clear bug where path resolution fails when s3.endpoint is present in the Iceberg REST catalog config, leading to a malformed S3 path. A capable developer can locate the Iceberg REST catalog configuration and path handling logic in the codebase, but understanding the exact URI normalization and path joining routines for Iceberg in ClickHouse requires domain-specific code navigation.",
+      "feasibility_reason": "The issue describes a clear bug related to path normalization in the Iceberg REST catalog integration when s3.endpoint config is returned. However, fixing it requires understanding the Iceberg catalog client implementation and path resolution logic in ClickHouse, which can be somewhat complex without prior codebase familiarity.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "When an Iceberg REST catalog provides S3 configuration including an `s3.endpoint`, ClickHouse fails to properly match and strip prefixes between `data_location` and `metadata_location`. This causes the full S3 URI to be appended to the object path, resulting in malformed object keys.",
-      "root_cause_hypothesis": "The Iceberg REST catalog client or storage engine checks `if (metadata_location.starts_with(data_location))` to obtain a relative metadata path. However, `data_location` may be transformed or prefixed with the configured endpoint (e.g. `http://minio:9000/bucket/...`), or have differing URI schemes (`s3://` vs endpoint URL schemes), while `metadata_location` remains a standard S3 URI (`s3://bucket/...`). Because the prefix check fails, ClickHouse treats the entire `metadata_location` URI as a relative key inside the bucket.",
-      "suggested_approach": "Normalize both `metadata_location` and `data_location` into S3 bucket and object key components before computing relative paths, or extract the S3 key directly from `metadata_location` based on URI parsing instead of relying on a raw string prefix check against `data_location`.",
+      "problem_summary": "ClickHouse fails to resolve the correct relative path for Iceberg table metadata when using an Iceberg REST catalog with an 's3.endpoint' config, resulting in the full 's3://...' URI being appended to the object store key.",
+      "root_cause_hypothesis": "Path resolution uses a naive prefix comparison (e.g. metadata_location.starts_with(data_location)) to determine the relative path of the metadata file within the bucket/storage. When 's3.endpoint' is configured in the REST catalog response, data_location incorporates the endpoint URL (http/https format) or has a differing URI scheme/format compared to metadata_location (which retains the 's3://' scheme). Because their prefixes do not match, the prefix strip fails and the entire metadata URI is appended to the path.",
+      "suggested_approach": "Normalize both metadata_location and data_location before performing relative path extraction by parsing them as object storage URIs or stripping the URI schemes and host/endpoint/bucket components, or parse metadata_location directly into its bucket and object key components rather than relying on prefix stripping.",
       "likely_areas": [
         "src/Storages/StorageIceberg.cpp",
-        "src/Storages/ObjectStorage/DataLake/Iceberg",
-        "src/Common/S3/S3URI.cpp",
-        "src/Common/S3/S3URI.h"
+        "src/Storages/DataLake/Iceberg/IcebergRESTCatalog.cpp",
+        "src/Databases/DataLake/DatabaseIceberg.cpp",
+        "src/Common/S3/URI.cpp"
       ],
       "prerequisites": [
-        "MinIO and Iceberg REST catalog (Lakekeeper or Nessie) test environment or mocked REST catalog responses",
-        "Familiarity with ClickHouse's S3URI utility class and Iceberg metadata parsing"
+        "Set up a local development environment capable of building ClickHouse with datalake / Iceberg support.",
+        "Configure a test environment with MinIO and an Iceberg REST catalog (such as Apache Lakekeeper or Project Nessie) providing s3.endpoint configs."
       ],
       "implementation_steps": [
-        "Locate the path resolution snippet performing `if (metadata_location.starts_with(data_location))` in the Iceberg REST catalog / datalake storage implementation.",
-        "Parse both `metadata_location` and `data_location` using `S3URI` or URI parsing helpers to extract bucket and object key parts, rather than doing naive string prefix matching.",
-        "Handle cases where `data_location` or catalog config specifies `s3.endpoint` with path-style access (e.g., MinIO `http://endpoint/bucket/path`) vs canonical S3 URIs (`s3://bucket/path`).",
-        "Ensure relative metadata path derivation compares keys within the same bucket or resolves `metadata_location` directly to its object key in the target bucket.",
-        "Add unit and integration tests covering REST catalog configurations that return custom `s3.endpoint` and `s3.path-style-access`."
+        "Locate the path resolution snippet where metadata_location and data_location prefix matching occurs for Iceberg tables.",
+        "Refactor path calculation to parse URI components (e.g., scheme, bucket, key) using existing URI parsing utilities (such as S3::URI or general URI parsers) instead of raw string prefix matching.",
+        "Ensure both s3://, s3a://, and http(s):// endpoint styles (path-style and virtual-hosted-style) are handled so that the object key inside the bucket is extracted reliably.",
+        "Handle cases where metadata_location points to a fully qualified URI while data_location might be an endpoint URL or a bucket-prefixed path.",
+        "Add unit tests and integration tests covering REST catalog responses that supply s3.endpoint (e.g., Lakekeeper, Nessie, MinIO) to verify metadata file resolution.",
+        "Verify backward compatibility with standard S3 catalog setups (AWS S3 without custom endpoint, Glue, Hive catalogs)."
       ],
       "confidence": "high",
       "first_seen": "2026-08-11T01:07:40.092772+00:00",
-      "processed_at": "2026-09-06T02:10:49.962848+00:00"
+      "processed_at": "2026-09-12T02:21:34.313604+00:00"
     },
     "76518": {
       "repo": "ClickHouse/ClickHouse",
@@ -329,6 +331,53 @@
       "confidence": "high",
       "first_seen": "2026-09-06T02:10:54.873773+00:00",
       "processed_at": "2026-09-06T02:10:54.873773+00:00"
+    },
+    "71793": {
+      "repo": "ClickHouse/ClickHouse",
+      "number": 71793,
+      "title": "Deletion Error with Ephemeral Column in Table",
+      "source_url": "https://github.com/ClickHouse/ClickHouse/issues/71793",
+      "labels": [
+        "bug",
+        "comp-mutations",
+        "external"
+      ],
+      "reactions": 1,
+      "created_at": "2024-11-12T04:17:38Z",
+      "updated_at": "2026-09-11T15:43:59Z",
+      "need_score": 14.8,
+      "feasibility": "high",
+      "feasibility_reason": "The issue provides a clear reproduction case detailing a specific bug where an ephemeral column is incorrectly marked as required during a DELETE mutation. The error points directly to column validation or query rewriting during mutations for tables with ephemeral/materialized columns.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Executing a lightweight DELETE on a table containing a MATERIALIZED column that depends on an EPHEMERAL column fails with 'Missing columns: <column> while processing query (UNKNOWN_IDENTIFIER)' even if the predicate does not reference either column.",
+      "root_cause_hypothesis": "Lightweight delete (DELETE FROM ... WHERE ...) prepares actions/expressions over table columns or builds an execution pipeline where default/materialized expressions are analyzed or materialized unnecessarily. When building the query or mutation DAG for lightweight delete (e.g. evaluating expressions or reading columns for mask generation or row updates), ClickHouse attempts to evaluate or resolve dependencies for all MATERIALIZED columns. Because EPHEMERAL columns are not physically stored in parts, any expression depending on an EPHEMERAL column fails resolution with UNKNOWN_IDENTIFIER.",
+      "suggested_approach": "Ensure that lightweight delete expression analysis only builds DAGs/actions for columns required by the filter expression and mask generation (_row_exists). When building column expressions or analyzing columns during lightweight delete planning, skip evaluating or requiring expressions for MATERIALIZED columns that are not referenced in the filter condition.",
+      "likely_areas": [
+        "src/Interpreters/MutationsInterpreter.cpp",
+        "src/Interpreters/InterpreterDeleteQuery.cpp",
+        "src/Storages/MergeTree/MergeTreeData.cpp",
+        "src/Storages/MergeTree/MergeTreeDataSelectExecutor.cpp"
+      ],
+      "prerequisites": [
+        "Build ClickHouse with CMake and Ninja in Developer or Debug mode.",
+        "Be familiar with ClickHouse mutation and lightweight delete pipelines (`InterpreterDeleteQuery` and `MutationsInterpreter`)."
+      ],
+      "implementation_steps": [
+        "Reproduce the issue using a functional test script (`clickhouse-client`) with a MergeTree table containing an EPHEMERAL column and a MATERIALIZED column depending on it, then executing `DELETE FROM ... WHERE ...`.",
+        "Trace the execution flow of `DELETE FROM table WHERE condition` in `InterpreterDeleteQuery.cpp` and `MutationsInterpreter.cpp` to pinpoint where MATERIALIZED column expressions are being evaluated or collected into required columns.",
+        "Inspect the column dependency calculation in `MutationsInterpreter` (or wherever lightweight delete mutation commands/actions are constructed) to verify why MATERIALIZED columns are pulled into the expression actions when only a row-exists mask is being updated.",
+        "Adjust the logic so that lightweight delete mutation commands only calculate required columns and expressions for columns actually modified or evaluated (the predicate columns and `_row_exists`), avoiding computation or resolution of unreferenced MATERIALIZED/EPHEMERAL column expressions.",
+        "Verify that standard mutations (e.g., `ALTER TABLE ... UPDATE`, `ALTER TABLE ... MATERIALIZE COLUMN`) retain their intended behavior when handling dependent materialized columns.",
+        "Add a regression test in `tests/queries/0_stateless/` verifying `DELETE FROM` succeeds on tables with EPHEMERAL columns referenced by MATERIALIZED columns."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-09-12T02:21:46.544055+00:00",
+      "processed_at": "2026-09-12T02:21:46.544055+00:00"
     }
   }
 }
