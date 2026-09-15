@@ -1,6 +1,6 @@
 {
   "repo": "duckdb/duckdb",
-  "generated_at": "2026-09-12T02:20:53.183208+00:00",
+  "generated_at": "2026-09-15T02:43:39.187837+00:00",
   "issues": {
     "13069": {
       "repo": "duckdb/duckdb",
@@ -316,6 +316,52 @@
       "confidence": "medium",
       "first_seen": "2026-08-21T00:49:42.377324+00:00",
       "processed_at": "2026-08-21T00:49:42.377324+00:00"
+    },
+    "17348": {
+      "repo": "duckdb/duckdb",
+      "number": 17348,
+      "title": "ALTER TABLE ALTER column dependency error",
+      "source_url": "https://github.com/duckdb/duckdb/issues/17348",
+      "labels": [
+        "reproduced"
+      ],
+      "reactions": 3,
+      "created_at": "2025-05-03T19:11:40Z",
+      "updated_at": "2026-07-01T15:56:55Z",
+      "need_score": 18.4,
+      "feasibility": "high",
+      "feasibility_reason": "The issue provides a clear reproduction script for a specific dependency error during an ALTER TABLE operation when a unique index exists. The codebase has well-defined table alteration and catalog dependency logic that a capable developer can investigate and fix.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Attempting to alter a column's type or constraints on a table with secondary objects (like unique indexes) fails with a 'Dependency Error: Cannot alter entry because there are entries that depend on it', even when the altered column is unrelated to the index.",
+      "root_cause_hypothesis": "The DependencyManager tracks catalog dependencies at the table level (the entire DuckTableEntry) rather than at the column level. When an index or constraint depends on the table, altering any column triggers a dependency check that blocks the alteration because the table has dependents.",
+      "suggested_approach": "Refine the dependency check during ALTER TABLE operations (specifically column alteration like TYPE, DROP, or RENAME) to either introduce column-level dependency resolution or inspect dependent catalog entries (e.g., DuckIndexEntry) to determine if the specific column being modified is actually referenced by each dependent entry.",
+      "likely_areas": [
+        "src/catalog/dependency_manager.cpp",
+        "src/catalog/catalog_entry/duck_table_entry.cpp",
+        "src/catalog/duck_catalog.cpp",
+        "src/execution/operator/schema/physical_alter.cpp",
+        "src/include/duckdb/catalog/dependency_manager.hpp"
+      ],
+      "prerequisites": [
+        "Familiarity with DuckDB's catalog architecture, specifically CatalogSet, CatalogEntry, and DependencyManager.",
+        "Understanding of how DuckDB models indexes (DuckIndexEntry) and column bindings."
+      ],
+      "implementation_steps": [
+        "Locate the DependencyManager check triggered during ALTER TABLE in DuckCatalog::Alter / CatalogSet::AlterEntry / DependencyManager::AlterObject.",
+        "Investigate the dependent entries to identify which object types cause the block (specifically DuckIndexEntry or other schema objects referencing the table).",
+        "Enhance the dependency verification logic during column alterations (AlterTableInfo with AlterScalar / AlterType / DropColumn / RenameColumn): check whether each dependent entry actually references the column being altered.",
+        "For index entries, inspect the index column identifiers or expressions to verify if the modified column is part of the index definition; if it is not, permit the alteration.",
+        "Ensure table data rewriting or storage column replacement (StorageManager / DataTable) properly handles preserving and updating existing index offsets and storage pointers when columns are altered.",
+        "Add regression tests in test/sql/catalog/test_alter.test or test/sql/index covering ALTER TABLE ALTER COLUMN TYPE, DROP NOT NULL, and RENAME COLUMN when non-indexed columns are altered in the presence of secondary/unique indexes."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-09-15T02:43:39.187777+00:00",
+      "processed_at": "2026-09-15T02:43:39.187777+00:00"
     }
   }
 }
