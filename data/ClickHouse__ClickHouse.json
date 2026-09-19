@@ -1,6 +1,6 @@
 {
   "repo": "ClickHouse/ClickHouse",
-  "generated_at": "2026-09-18T02:27:09.279380+00:00",
+  "generated_at": "2026-09-19T02:27:12.673754+00:00",
   "issues": {
     "80561": {
       "repo": "ClickHouse/ClickHouse",
@@ -378,6 +378,52 @@
       "confidence": "high",
       "first_seen": "2026-09-12T02:21:46.544055+00:00",
       "processed_at": "2026-09-12T02:21:46.544055+00:00"
+    },
+    "11942": {
+      "repo": "ClickHouse/ClickHouse",
+      "number": 11942,
+      "title": "allow_ddl option is not consistent over restarts",
+      "source_url": "https://github.com/ClickHouse/ClickHouse/issues/11942",
+      "labels": [
+        "bug",
+        "usability",
+        "comp-ddl",
+        "external"
+      ],
+      "reactions": 1,
+      "created_at": "2020-06-25T12:15:00Z",
+      "updated_at": "2026-09-11T18:08:19Z",
+      "need_score": 14.8,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue involves configuration loading or profile settings persistence upon server restart, which might require navigating the configuration initialization code and user profile management subsystem. However, a reproduction script is provided, making it approachable.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "When `allow_ddl` is set to 0 in the `default` profile, distributed DDL queries (`ON CLUSTER`) fail across server restarts, even when initiated by a user with a profile where `allow_ddl = 1`.",
+      "root_cause_hypothesis": "`DDLWorker` processes distributed DDL tasks pulled from ZooKeeper in a background thread using a context derived from the server's global/default context. If `default_profile` disables `allow_ddl`, `DDLWorker` inherits `allow_ddl = 0` for background task execution unless explicitly overridden, preventing execution of replicated DDL tasks after a clean startup.",
+      "suggested_approach": "Ensure that `DDLWorker` (and any internal background execution paths that execute validated replicated DDL tasks) explicitly enables `allow_ddl` in its execution context or bypasses user-level DDL restrictions for system task execution.",
+      "likely_areas": [
+        "src/Interpreters/DDLWorker.cpp",
+        "src/Interpreters/Context.cpp",
+        "src/Interpreters/InterpreterCreateQuery.cpp"
+      ],
+      "prerequisites": [
+        "Reproduce the issue by starting a cluster with `allow_ddl=0` in the default profile and running an `ON CLUSTER` DDL query as a user with `allow_ddl=1`.",
+        "Verify the behavior of `DDLWorker::processTask` and context creation when initializing the query context for cluster DDL execution."
+      ],
+      "implementation_steps": [
+        "Locate `DDLWorker::processTask` (or `DDLWorker::runQuery`) where the query context for the replicated DDL task is instantiated.",
+        "Inspect the settings applied to the task context; confirm whether `allow_ddl` is inherited from the global context or default settings profile.",
+        "Explicitly set `task_context->setSetting(\"allow_ddl\", Field(1))` or apply the appropriate internal bypass in `DDLWorker` to ensure the background task runner can always execute DDL.",
+        "Check whether other internal background execution threads (e.g. database engines or replicated tables) face similar restrictions when `allow_ddl = 0` in default profile and apply consistent context settings if needed.",
+        "Add an integration test (e.g. in `tests/integration/test_ddl_worker/`) configuring a user profile with `allow_ddl = 1` and default profile with `allow_ddl = 0`, verifying that `ON CLUSTER` queries succeed across server restarts."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-09-19T02:27:12.673698+00:00",
+      "processed_at": "2026-09-19T02:27:12.673698+00:00"
     }
   }
 }

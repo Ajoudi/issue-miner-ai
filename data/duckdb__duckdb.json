@@ -1,6 +1,6 @@
 {
   "repo": "duckdb/duckdb",
-  "generated_at": "2026-09-18T02:26:36.076767+00:00",
+  "generated_at": "2026-09-19T02:26:51.474259+00:00",
   "issues": {
     "13069": {
       "repo": "duckdb/duckdb",
@@ -105,37 +105,38 @@
       "updated_at": "2026-04-06T11:02:58Z",
       "need_score": 41.6,
       "feasibility": "medium",
-      "feasibility_reason": "Implementing XDG Base Directory Specification support requires identifying all places where configuration, history, and cache files are created in the home directory and updating them to respect XDG environment variables (XDG_CONFIG_HOME, XDG_DATA_HOME, etc.), while preserving backward compatibility for existing user directories.",
+      "feasibility_reason": "Implementing XDG Base Directory Specification support requires identifying all places where configuration, history, and extension directories are hardcoded in the codebase, and adding fallback logic for XDG environment variables (XDG_DATA_HOME, XDG_CONFIG_HOME, XDG_CACHE_HOME). While straightforward, it touches multiple file path resolution utilities across the codebase.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "DuckDB CLI and extension management store files and directories directly in the user's home directory ($HOME/.duckdb, $HOME/.duckdb_history) instead of following standard directory specifications such as the XDG Base Directory Specification on Linux/Unix.",
-      "root_cause_hypothesis": "Path resolution for user state, extensions, and CLI history hardcodes or defaults to `$HOME/.duckdb` and `$HOME/.duckdb_history` without inspecting XDG environment variables (such as $XDG_CONFIG_HOME, $XDG_DATA_HOME, or $XDG_STATE_HOME) on Unix-like operating systems.",
-      "suggested_approach": "Update path resolution for configuration, extension storage, and history files to check XDG environment variables on non-Windows platforms (or appropriate platform-specific defaults). Ensure backward compatibility by checking existing legacy paths in `$HOME` before defaulting to new standard paths, or provide automatic fallback/migration logic.",
+      "problem_summary": "DuckDB places configuration, extension files, and history directly under the user's home directory (~/.duckdb and ~/.duckdb_history) on Linux/Unix systems rather than adhering to the XDG Base Directory Specification.",
+      "root_cause_hypothesis": "The DuckDB shell and extension management helpers resolve storage and configuration paths directly relative to `GetHomeDirectory()` (e.g. `~/.duckdb` for extension installations and `~/.duckdb_history` for linenoise/readline shell history) without checking XDG environment variables like `XDG_DATA_HOME`, `XDG_STATE_HOME`, or `XDG_CONFIG_HOME`.",
+      "suggested_approach": "Introduce platform-aware path resolution helpers for data and state paths. On Linux/Unix platforms, respect `$XDG_DATA_HOME` (fallback to `~/.local/share/duckdb`) for extensions/data and `$XDG_STATE_HOME` (fallback to `~/.local/state/duckdb`) or `$XDG_CONFIG_HOME` (fallback to `~/.config/duckdb`) for shell history. Maintain backwards compatibility by checking if legacy paths (`~/.duckdb`, `~/.duckdb_history`) exist before falling back to creating new XDG directories.",
       "likely_areas": [
         "src/main/extension/extension_helper.cpp",
+        "src/main/extension/extension_install.cpp",
         "src/common/file_system.cpp",
         "src/include/duckdb/common/file_system.hpp",
         "tools/shell/shell.c",
-        "tools/shell/linenoise/linenoise.cpp"
+        "tools/shell/linenoise.c"
       ],
       "prerequisites": [
-        "Review DuckDB extension directory resolution logic and CLI history handling.",
-        "Review XDG Base Directory Specification for appropriate directories ($XDG_CONFIG_HOME for config, $XDG_DATA_HOME for extensions/shared data, $XDG_STATE_HOME or $XDG_DATA_HOME for history)."
+        "Verify team consensus or precedent regarding XDG compliance vs backwards compatibility on Unix-like operating systems (including macOS vs Linux conventions).",
+        "Ensure standard environment variable reading (`std::getenv` or `FileSystem`) handles empty and unset states correctly per XDG specification."
       ],
       "implementation_steps": [
-        "Add helper functions in FileSystem/OS helper utilities to resolve platform-specific config/data/state directory paths respecting XDG environment variables (e.g., $XDG_DATA_HOME defaulting to ~/.local/share, $XDG_CONFIG_HOME defaulting to ~/.config, $XDG_STATE_HOME defaulting to ~/.local/state).",
-        "Update extension installation and lookup paths in `ExtensionHelper` to prefer the XDG data directory (e.g., `$XDG_DATA_HOME/duckdb/extensions` or `$XDG_CONFIG_HOME/duckdb`) while preserving fallback support for existing `$HOME/.duckdb/extensions` directories to prevent breaking existing installations.",
-        "Update the DuckDB CLI (`shell.c` / history handling) to store `.duckdb_history` under `$XDG_STATE_HOME/duckdb/history` or `$XDG_DATA_HOME/duckdb/history`, with a fallback to `~/.duckdb_history` if the legacy file already exists.",
-        "Ensure non-Linux platforms (Windows, macOS) maintain their expected or standard conventions without unintended regressions.",
-        "Add unit and integration tests verifying directory resolution with and without XDG environment variables set, as well as fallback behavior when legacy paths exist."
+        "Add helper functions to retrieve XDG base directory paths (or platform-specific standard paths) in DuckDB's FileSystem or path utilities (e.g., GetUserDataDirectory and GetUserStateDirectory).",
+        "Update extension directory resolution in `ExtensionHelper::DefaultExtensionFolder` to check if `~/.duckdb` exists; if not, use `$XDG_DATA_HOME/duckdb` (defaulting to `~/.local/share/duckdb/extensions`).",
+        "Update the CLI shell history resolution in `tools/shell/shell.c` to look for legacy `~/.duckdb_history`; if absent, store history in `$XDG_STATE_HOME/duckdb/history` (or `$XDG_DATA_HOME/duckdb/history` / `~/.local/state/duckdb/history`).",
+        "Ensure parent directory creation is performed safely when initializing newly formatted XDG paths.",
+        "Add unit tests and shell integration tests verifying path resolution when XDG environment variables are explicitly set, unset, and when legacy fallback directories are present."
       ],
       "confidence": "high",
       "first_seen": "2026-08-09T01:05:25.499898+00:00",
-      "processed_at": "2026-08-29T05:02:26.320054+00:00"
+      "processed_at": "2026-09-19T02:25:41.430304+00:00"
     },
     "14242": {
       "repo": "duckdb/duckdb",
@@ -150,37 +151,37 @@
       "updated_at": "2026-04-08T00:59:46Z",
       "need_score": 20.0,
       "feasibility": "high",
-      "feasibility_reason": "The issue provides a clear reproduction script and points directly to a specific aggregate function (bitstring_agg) failing when encountering NULL values or empty groups. This is a localized bug in how the aggregate function handles null inputs or empty state extraction.",
+      "feasibility_reason": "The issue provides a clear reproduction case showing that bitstring_agg throws an error on NULLs or empty groups. This is likely a localized bug in the aggregation function implementation where NULL handling or empty group checks are missing.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Calling `bitstring_agg` with a single argument on queries with subqueries/unions containing NULL values or missing statistics fails during binding with a Binder Error requesting explicit min/max statistics.",
-      "root_cause_hypothesis": "The 1-argument overload of `bitstring_agg` relies on column statistics (min and max) resolved at bind time. When expressions involve subqueries, unions, or columns with incomplete/null-only statistics propagation, the binder cannot retrieve valid min/max bounds and fails immediately. Additionally, runtime state handling for `bitstring_agg` may not gracefully handle groups that contain only NULL values or empty sets when min/max are deduced.",
-      "suggested_approach": "Review the binder logic for `bitstring_agg` and statistics propagation. For the 1-argument overload, verify whether binder statistics fallback or execution-time dynamic min/max initialization is feasible, or ensure clear and accurate statistics propagation/error reporting. Ensure runtime aggregation handles NULL-only and empty groups without crashing or throwing invalid state errors.",
+      "problem_summary": "Calling `bitstring_agg(arg)` without explicit min/max bounds fails with a Binder Error ('Could not retrieve required statistics') when the input contains NULLs, UNIONs/expressions without exact statistics, or empty groups.",
+      "root_cause_hypothesis": "The binder for `bitstring_agg` relies on column/expression statistics propagation to determine the min and max integer bounds required to allocate the bitstring. When statistics are unknown, incomplete, or cannot provide non-null min/max bounds (e.g., across UNION ALL with NULLs, or subqueries where stats are not propagated), the binder immediately errors out instead of falling back to a runtime dynamic aggregation or handling nullable stats properly.",
+      "suggested_approach": "Review how `bitstring_agg` binds statistics in the aggregate function binder. Either allow dynamic computation of min/max bounds at runtime during aggregation when statistics are missing/incomplete, or refine the binder and statistics propagation so that NULL values do not invalidate otherwise extractable min/max statistics.",
       "likely_areas": [
-        "src/core_functions/aggregate/distributive/bitstring_agg.cpp",
-        "src/execution/operator/aggregate/physical_hash_aggregate.cpp",
-        "src/optimizer/statistics_propagator.cpp",
-        "src/planner/binder/expression/bind_aggregate_expression.cpp"
+        "src/function/aggregate/distributive/bitstring_agg.cpp",
+        "src/optimizer/statistics/aggregate/bitstring_agg_statistics.cpp",
+        "src/planner/binder/expression/bind_aggregate_expression.cpp",
+        "test/sql/aggregate/aggregates/test_bitstring_agg.test"
       ],
       "prerequisites": [
-        "C++11/C++17 build environment for DuckDB (CMake, Ninja/Make, modern compiler)",
-        "DuckDB test suite framework (sqllogictest)"
+        "Clone and build DuckDB from source using CMake/Ninja.",
+        "Inspect existing implementation of `bitstring_agg` and how `BaseStatistics` are inspected during binding."
       ],
       "implementation_steps": [
-        "Reproduce the error using `SELECT bitstring_agg(arg) FROM (SELECT 1 AS arg UNION ALL SELECT NULL AS arg);` in DuckDB unit tests or sqllogictest.",
-        "Examine `bitstring_agg.cpp` to understand how the binder binds 1-argument vs 3-argument overloads using `BaseStatistics` / `NumericStats`.",
-        "Investigate statistics propagation for UNION ALL and NULL literals in `statistics_propagator.cpp` to check why min/max statistics are lost or marked invalid when NULL is present.",
-        "If stats cannot be known at bind time, consider whether `bitstring_agg` can support dynamic min/max accumulation or improve binder resolution when stats are available for non-null components.",
-        "Inspect the runtime aggregate execution (e.g. `BitstringAggOperation` / state update) to ensure NULL values are ignored as expected and empty or NULL-only groups produce NULL or empty bitstrings rather than throwing.",
-        "Add regression test cases in `test/sql/aggregate/aggregates/test_bitstring_agg.test` covering subqueries with NULLs, empty tables, and explicit/implicit min/max."
+        "Locate the `bitstring_agg` function definition in `src/function/aggregate/distributive/bitstring_agg.cpp` (or equivalent location in aggregate functions).",
+        "Trace the bind function for `bitstring_agg` where `NumericStats::HasMinMax` or equivalent statistics check is invoked.",
+        "Investigate why stats are missing or rejected when NULL values are present or when inputs come from subqueries/unions (check `NumericStats::Min` and `NumericStats::Max` validity even when `stats.CanHaveNull()` is true).",
+        "If statistics cannot be statically inferred, decide whether `bitstring_agg` should support a dynamic state or two-pass execution, or whether the binder error message can provide clearer guidance or fallback to a version that determines bounds dynamically.",
+        "Ensure NULL handling in the aggregate execution logic skips NULL values without crashing or corrupting the bitstring buffer.",
+        "Add regression test cases in `test/sql/aggregate/aggregates/` testing `bitstring_agg` with NULL values, UNION ALL queries containing NULLs, and empty groups."
       ],
       "confidence": "high",
       "first_seen": "2026-08-09T01:05:53.501995+00:00",
-      "processed_at": "2026-08-24T00:48:58.070780+00:00"
+      "processed_at": "2026-09-19T02:26:21.939723+00:00"
     },
     "7168": {
       "repo": "duckdb/duckdb",

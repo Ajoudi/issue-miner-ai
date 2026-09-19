@@ -1,6 +1,6 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-09-18T02:23:25.950586+00:00",
+  "generated_at": "2026-09-19T02:24:44.827226+00:00",
   "issues": {
     "15280": {
       "repo": "langfuse/langfuse",
@@ -59,16 +59,16 @@
       "updated_at": "2026-08-19T23:39:24Z",
       "need_score": 12.8,
       "feasibility": "high",
-      "feasibility_reason": "The issue clearly identifies a broken documentation instruction in CONTRIBUTING.md regarding ClickHouse installation on macOS and proposes a straightforward fix (updating the documentation to use the dockerized clickhouse client or a reliable install script). It is well-defined and self-contained.",
+      "feasibility_reason": "The issue clearly identifies a broken installation command in CONTRIBUTING.md and a potential improvement using a Docker-based shim or updating instructions, which is straightforward to update.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "under_1h",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Local development setup in CONTRIBUTING.md contains broken or suboptimal installation steps for ClickHouse CLI (deprecated cask / heavyweight download) and missing instructions for golang-migrate on Linux (requiring the ClickHouse driver build tag). Furthermore, there is no agent skill or preflight script in .agents/skills/ to guide agentic or automated workflows through zero-to-running local development setup.",
-      "root_cause_hypothesis": "CONTRIBUTING.md relies on external standalone binary installs for ClickHouse instead of reusing the running Docker container via a lightweight wrapper script (as CI does in pipeline.yml). golang-migrate documentation omits Linux-specific build instructions with the 'clickhouse' build tag. Additionally, existing agent skills assume prerequisite environment setup (pnpm install, .env, docker containers) is already completed, leaving bootstrap steps uncovered.",
-      "suggested_approach": "Update CONTRIBUTING.md to document the lightweight ClickHouse client shim (docker exec wrapper) and add Linux/macOS golang-migrate installation instructions. Add a preflight validation script (scripts/preflight.sh) to verify prerequisites (Node, pnpm, Docker, golang-migrate, clickhouse shim) and introduce a new agent skill (.agents/skills/setup-local-dev/SKILL.md) covering local environment bootstrap.",
+      "problem_summary": "Local development bootstrapping documentation in CONTRIBUTING.md is broken across macOS and Linux (e.g., ClickHouse CLI install issues and missing golang-migrate tags), and no agent skill currently exists to automate or guide zero-to-running local development setup.",
+      "root_cause_hypothesis": "CONTRIBUTING.md prescribes downloading an 800+ MB ClickHouse binary or using deprecated Homebrew casks rather than leveraging the running Docker container via a lightweight shim (which CI already uses), and omits platform-specific requirements like building golang-migrate with the clickhouse tag. Additionally, existing agent skills assume dependencies and environment files are already configured, leaving the initial bootstrap layer uncovered.",
+      "suggested_approach": "Update CONTRIBUTING.md with accurate prerequisite instructions, including a docker-exec based clickhouse shim and explicit golang-migrate instructions with the clickhouse tag. Add a preflight verification script (scripts/preflight.sh) to check host requirements before pnpm install. Introduce a dedicated setup-local-dev agent skill in .agents/skills/ that provides an ordered, deterministic workflow from repo clone to running stack.",
       "likely_areas": [
         "CONTRIBUTING.md",
         ".agents/skills/",
@@ -77,19 +77,19 @@
       ],
       "prerequisites": [
         "Docker and Docker Compose installed and running locally",
-        "Node.js and pnpm configured",
-        "Go toolchain or Homebrew to test golang-migrate installation"
+        "Node.js (matching repo version requirements) and pnpm enabled via corepack",
+        "Go toolchain or Homebrew for testing golang-migrate installation options"
       ],
       "implementation_steps": [
-        "Update CONTRIBUTING.md step 1 to recommend the docker exec wrapper shim for ClickHouse (`docker exec -i langfuse-clickhouse clickhouse \"$@\"`) instead of downloading the standalone ClickHouse binary.",
-        "Add explicit Linux instructions for golang-migrate in CONTRIBUTING.md: `go install -tags clickhouse github.com/golang-migrate/migrate/v4/cmd/migrate@latest` explaining the requirement for the ClickHouse driver tag.",
-        "Create or update a helper script `scripts/preflight.sh` that checks system prerequisites (Node version matching package.json/nvmrc, pnpm, running Docker daemon, golang-migrate with clickhouse support, and clickhouse shim or binary).",
-        "Create the `.agents/skills/setup-local-dev/` skill directory with a `SKILL.md` file documenting the exact bootstrapping order: preflight checks, environment file creation (.env), corepack/pnpm install, container startup (`infra:dev:up`), database migrations, and handover to `seed-test-data`.",
-        "Verify preflight script and skill documentation on a clean environment or worktree to ensure `pnpm run seed -- doctor` succeeds end-to-end."
+        "Update CONTRIBUTING.md to replace direct ClickHouse binary / Homebrew cask downloads with instructions to create a lightweight CLI shim script pointing to the langfuse-clickhouse Docker container (exec docker exec -i langfuse-clickhouse clickhouse \"$@\").",
+        "Document Linux and macOS install instructions for golang-migrate in CONTRIBUTING.md, noting the requirement for the 'clickhouse' build tag (e.g., via go install -tags clickhouse ...).",
+        "Create a scripts/preflight.sh script that checks for Node version, pnpm, Docker daemon status, required ports, and required binaries (migrate, clickhouse shim) before pnpm install.",
+        "Author a new agent skill definition in .agents/skills/setup-local-dev with structured guidance detailing the bootstrap process: environment setup (.env.dev.example to .env), container startup, migration ordering, and running validation via pnpm run seed -- doctor.",
+        "Verify the entire flow from a completely clean environment across platforms (macOS/Linux) and ensure pnpm run seed -- doctor passes cleanly."
       ],
       "confidence": "high",
       "first_seen": "2026-08-09T01:04:28.524664+00:00",
-      "processed_at": "2026-09-05T02:10:58.375420+00:00"
+      "processed_at": "2026-09-19T02:24:44.827160+00:00"
     },
     "15372": {
       "repo": "langfuse/langfuse",
@@ -154,16 +154,16 @@
       "updated_at": "2026-08-12T13:31:36Z",
       "need_score": 17.8,
       "feasibility": "high",
-      "feasibility_reason": "The issue requests adding native tracing support for the OpenAI Assistants API. The requirements are clearly specified, detailing which endpoints and methods need to be captured, and the codebase likely already contains similar instrumentation patterns for OpenAI SDK integrations.",
+      "feasibility_reason": "The issue requests adding native tracing support for the OpenAI Assistants API. The requirements are clearly specified, detailing which endpoints and methods need to be wrapped or observed, and it fits well into existing SDK integration patterns.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "The Langfuse OpenAI Python SDK integration currently lacks native instrumentation for OpenAI Assistants API (beta endpoints for assistants, threads, messages, runs, and run steps).",
-      "root_cause_hypothesis": "The existing OpenAI wrapper/patching logic primarily wraps standard completion, chat completion, and embedding endpoints and does not intercept or track calls under `openai.beta.assistants`, `openai.beta.threads`, `openai.beta.threads.runs`, or resolve nested run steps and message contexts.",
-      "suggested_approach": "Extend the OpenAI integration wrapper to wrap beta Assistant and Thread APIs (`beta.assistants`, `beta.threads`, `beta.threads.messages`, `beta.threads.runs`, and `beta.threads.runs.steps`), translating runs and run steps into Langfuse traces, spans, and generations.",
+      "problem_summary": "The Langfuse Python SDK's OpenAI integration currently lacks native instrumentation for the OpenAI Assistants API (beta.threads, beta.assistants, beta.threads.runs, etc.), missing execution context and run steps in traces.",
+      "root_cause_hypothesis": "The existing OpenAI wrapper/patching logic primarily intercepts standard chat completion and generation endpoints (`client.chat.completions.create`), without handlers or wrapper hooks for the `client.beta.threads`, `client.beta.assistants`, and `client.beta.threads.runs` namespaces.",
+      "suggested_approach": "Extend the OpenAI wrapper to intercept the OpenAI Beta Assistants API endpoints (`threads.create`, `threads.messages.create`, `threads.runs.create`, `threads.runs.create_and_poll`, etc.), track parent-child trace/span hierarchies representing the Assistant run, and optionally query the OpenAI client to fetch run steps and thread messages to populate detailed observation inputs and outputs in Langfuse.",
       "likely_areas": [
         "langfuse/openai.py",
         "langfuse/openai/__init__.py",
@@ -171,20 +171,22 @@
         "tests/test_openai_assistants.py"
       ],
       "prerequisites": [
-        "Review OpenAI Assistants API v2/v1 lifecycle and SDK patterns in openai-python.",
-        "Review existing Langfuse OpenAI wrapper structure (sync and async monkey-patching / proxying)."
+        "OpenAI Python SDK v1.x installed with assistants API support enabled",
+        "Valid OpenAI API key or mock client fixtures to test Assistant, Thread, and Run workflows",
+        "Understanding of Langfuse trace, span, and generation data model"
       ],
       "implementation_steps": [
-        "Inspect the existing wrapper implementation in `langfuse/openai.py` (or corresponding module) to understand how client methods and attributes are wrapped for sync and async clients.",
-        "Define wrapper handlers for `client.beta.assistants.create`, `client.beta.threads.create`, `client.beta.threads.messages.create`, `client.beta.threads.runs.create`, `client.beta.threads.runs.create_and_poll`, and `client.beta.threads.runs.stream`.",
-        "Implement logic to map a Run to a Langfuse Trace/Span, associating the Assistant ID, Thread ID, and Run ID.",
-        "Implement polling/retrieval or stream-hooking for `client.beta.threads.runs.steps.list` to capture tool calls, message creations, and token usage as nested generations and spans within the run trace.",
-        "Ensure both synchronous and asynchronous OpenAI client calls (`AsyncOpenAI`) are properly wrapped and trace states are finalized on run completion/failure.",
-        "Add comprehensive unit and integration tests mocking or exercising OpenAI Assistant runs and verifying the resulting Langfuse traces, spans, and generation metadata."
+        "Inspect current OpenAI client patching mechanism in `langfuse/openai.py` to identify how namespaces and methods are wrapped.",
+        "Add wrappers for OpenAI Beta namespaces: `client.beta.assistants`, `client.beta.threads`, `client.beta.threads.messages`, and `client.beta.threads.runs` for both sync and async clients.",
+        "Instrument `threads.runs.create` and polling/streaming variants (`create_and_poll`, `stream`) to create a Langfuse trace/span representing the assistant run, associating assistant ID, model, thread ID, and run ID.",
+        "Implement run step resolution by querying `client.beta.threads.runs.steps.list` or retrieving run steps upon run completion, mapping step details (tool calls, message creations) to Langfuse spans or generations.",
+        "Capture thread messages from `client.beta.threads.messages.list` or `create` to attach input/output messages to the appropriate trace or generation.",
+        "Ensure error handling and graceful degradation so failures fetching additional steps or messages do not interrupt user application execution.",
+        "Add unit and integration tests covering assistant creation, thread message dispatch, run creation, and step resolution under both sync and async clients."
       ],
       "confidence": "high",
       "first_seen": "2026-08-14T01:12:44.312537+00:00",
-      "processed_at": "2026-08-29T04:58:19.391485+00:00"
+      "processed_at": "2026-09-19T02:24:31.026826+00:00"
     }
   }
 }
