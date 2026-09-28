@@ -1,6 +1,6 @@
 {
   "repo": "duckdb/duckdb",
-  "generated_at": "2026-09-22T02:37:05.133847+00:00",
+  "generated_at": "2026-09-28T02:49:10.187216+00:00",
   "issues": {
     "13069": {
       "repo": "duckdb/duckdb",
@@ -363,6 +363,51 @@
       "confidence": "high",
       "first_seen": "2026-09-15T02:43:39.187777+00:00",
       "processed_at": "2026-09-15T02:43:39.187777+00:00"
+    },
+    "15520": {
+      "repo": "duckdb/duckdb",
+      "number": 15520,
+      "title": "STDDEV function not support inf, -inf and Nan",
+      "source_url": "https://github.com/duckdb/duckdb/issues/15520",
+      "labels": [
+        "reproduced"
+      ],
+      "reactions": 3,
+      "created_at": "2025-01-02T12:06:03Z",
+      "updated_at": "2026-09-19T07:54:22Z",
+      "need_score": 18.4,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue describes a clear mathematical/numerical edge case where standard deviation functions in DuckDB throw an out-of-range error when encountering Infinity, -Infinity, or NaN values in floating-point columns. While reproducible and specific, fixing it requires understanding DuckDB's aggregate function implementations for floating-point statistics and deciding how IEEE 754 special values should propagate or be filtered in standard deviation calculations.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "DuckDB's STDDEV and VARIANCE aggregate functions throw an 'Out of Range Error' instead of returning NaN or Inf when calculating aggregate statistics over columns containing NaN, Inf, or -Inf.",
+      "root_cause_hypothesis": "The finalize or update stage of STDDEV and VARIANCE aggregates explicitly validates output or intermediate float/double values using Value::DoubleIsValid (or std::isfinite) and throws an OutOfRangeException if the result is not finite, a safeguard introduced historically before DuckDB had robust NaN/Inf support.",
+      "suggested_approach": "Remove or adjust the non-finite value checks in the STDDEV/VARIANCE aggregate implementations (reverting the defensive OutOfRange check introduced in commit 2e03516e04ae94c33bff66201cb4290c1dc86662) so that standard IEEE-754 NaN and Inf semantics are preserved and returned.",
+      "likely_areas": [
+        "extension/core_functions/aggregate/distributive/stddev.cpp",
+        "src/core_functions/aggregate/distributive/stddev.cpp",
+        "test/sql/aggregate/aggregates/test_stddev.test"
+      ],
+      "prerequisites": [
+        "Working C++ build environment for DuckDB (CMake, Ninja/Make, modern C++ compiler).",
+        "Familiarity with DuckDB's aggregate function infrastructure (State, Operation, Finalize)."
+      ],
+      "implementation_steps": [
+        "Locate the implementation of STDDEV and VARIANCE aggregates (typically in 'extension/core_functions/aggregate/distributive/stddev.cpp' or under 'src/core_functions/aggregate/distributive/').",
+        "Inspect the `Finalize` and `Operation` functions for `StddevOperation`, `VarianceOperation`, and related structs.",
+        "Identify where `Value::DoubleIsValid(...)` or `!std::isfinite(...)` is called to throw `OutOfRangeException(\"... is out of range!\")`.",
+        "Remove or modify the check to allow returning NaN/Inf directly without throwing an exception, ensuring consistency across float and double types.",
+        "Check for any related aggregate functions (such as COVAR_POP, COVAR_SAMP, CORR) to see if similar unnecessary range checks exist and address them if appropriate.",
+        "Run existing aggregate regression tests to ensure no regressions in standard valid inputs.",
+        "Add SQLLogicTest test cases covering `STDDEV`, `STDDEV_POP`, `STDDEV_SAMP`, `VARIANCE`, etc., with combinations of NaN, +Infinity, -Infinity, and finite values."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-09-28T02:49:10.187153+00:00",
+      "processed_at": "2026-09-28T02:49:10.187153+00:00"
     }
   }
 }
