@@ -1,6 +1,6 @@
 {
   "repo": "duckdb/duckdb",
-  "generated_at": "2026-09-28T02:49:10.187216+00:00",
+  "generated_at": "2026-09-29T03:31:38.635243+00:00",
   "issues": {
     "13069": {
       "repo": "duckdb/duckdb",
@@ -331,38 +331,38 @@
       "updated_at": "2026-07-01T15:56:55Z",
       "need_score": 18.4,
       "feasibility": "high",
-      "feasibility_reason": "The issue provides a clear reproduction script for a specific dependency error during an ALTER TABLE operation when a unique index exists. The codebase has well-defined table alteration and catalog dependency logic that a capable developer can investigate and fix.",
+      "feasibility_reason": "The issue provides a clear, minimal reproduction case where altering a column type on a table with a unique index throws an incorrect dependency error. Catalog dependency management during ALTER TABLE operations is a well-defined subsystem in DuckDB, making this straightforward to locate and fix for a developer.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Attempting to alter a column's type or constraints on a table with secondary objects (like unique indexes) fails with a 'Dependency Error: Cannot alter entry because there are entries that depend on it', even when the altered column is unrelated to the index.",
-      "root_cause_hypothesis": "The DependencyManager tracks catalog dependencies at the table level (the entire DuckTableEntry) rather than at the column level. When an index or constraint depends on the table, altering any column triggers a dependency check that blocks the alteration because the table has dependents.",
-      "suggested_approach": "Refine the dependency check during ALTER TABLE operations (specifically column alteration like TYPE, DROP, or RENAME) to either introduce column-level dependency resolution or inspect dependent catalog entries (e.g., DuckIndexEntry) to determine if the specific column being modified is actually referenced by each dependent entry.",
+      "problem_summary": "Altering an unindexed column on a table that has an index fails with 'Dependency Error: Cannot alter entry \"t\" because there are entries that depend on it.'",
+      "root_cause_hypothesis": "Catalog dependencies are tracked at the table level rather than the column level. When an ALTER TABLE operation modifies a column, the dependency manager checks whether any catalog objects (such as indexes) depend on the table entry. Finding a dependent index causes the alter check to fail, even though the specific column being altered is not indexed.",
+      "suggested_approach": "Update the dependency check for ALTER TABLE operations (specifically AlterType, DropColumn, and RenameColumn) so that dependent indexes are inspected to see if they reference the affected column. If an index only depends on unrelated columns, allow the alter operation to proceed without throwing a dependency error.",
       "likely_areas": [
         "src/catalog/dependency_manager.cpp",
         "src/catalog/catalog_entry/duck_table_entry.cpp",
-        "src/catalog/duck_catalog.cpp",
-        "src/execution/operator/schema/physical_alter.cpp",
-        "src/include/duckdb/catalog/dependency_manager.hpp"
+        "src/catalog/catalog_entry/table_catalog_entry.cpp",
+        "src/planner/binder/statement/bind_alter_table.cpp",
+        "src/execution/operator/schema/physical_alter.cpp"
       ],
       "prerequisites": [
-        "Familiarity with DuckDB's catalog architecture, specifically CatalogSet, CatalogEntry, and DependencyManager.",
-        "Understanding of how DuckDB models indexes (DuckIndexEntry) and column bindings."
+        "Familiarity with DuckDB's Catalog and DependencyManager subsystems",
+        "Understanding of DuckTableEntry, IndexCatalogEntry, and AlterTableInfo types"
       ],
       "implementation_steps": [
-        "Locate the DependencyManager check triggered during ALTER TABLE in DuckCatalog::Alter / CatalogSet::AlterEntry / DependencyManager::AlterObject.",
-        "Investigate the dependent entries to identify which object types cause the block (specifically DuckIndexEntry or other schema objects referencing the table).",
-        "Enhance the dependency verification logic during column alterations (AlterTableInfo with AlterScalar / AlterType / DropColumn / RenameColumn): check whether each dependent entry actually references the column being altered.",
-        "For index entries, inspect the index column identifiers or expressions to verify if the modified column is part of the index definition; if it is not, permit the alteration.",
-        "Ensure table data rewriting or storage column replacement (StorageManager / DataTable) properly handles preserving and updating existing index offsets and storage pointers when columns are altered.",
-        "Add regression tests in test/sql/catalog/test_alter.test or test/sql/index covering ALTER TABLE ALTER COLUMN TYPE, DROP NOT NULL, and RENAME COLUMN when non-indexed columns are altered in the presence of secondary/unique indexes."
+        "Locate the DependencyManager check invoked during table alter operations (e.g., in `DependencyManager::AlterObject` or `DuckTableEntry::AlterTable`).",
+        "Inspect the dependent catalog entries when an ALTER column operation is triggered (such as `AlterScalarData`, `ChangeColumnTypeInfo`, `DropColumnInfo`).",
+        "For each dependent index (e.g., `DuckIndexEntry` or `IndexCatalogEntry`), retrieve its column IDs / column names to determine whether the column being altered is part of that index.",
+        "Bypass or permit the dependency check if the dependent entry is an index that does not reference the target column, while continuing to block alterations if the index does reference the column.",
+        "Ensure table-level constraints or physical storage adjustments (like updating storage statistics or row groups) appropriately preserve the unaffected index.",
+        "Add regression test cases in `test/sql/alter/` covering ALTER column TYPE, DROP NOT NULL, and RENAME COLUMN on tables with indexes on other columns, as well as verifying that modifying an indexed column is still rejected or handled correctly."
       ],
-      "confidence": "high",
+      "confidence": "medium",
       "first_seen": "2026-09-15T02:43:39.187777+00:00",
-      "processed_at": "2026-09-15T02:43:39.187777+00:00"
+      "processed_at": "2026-09-29T03:31:38.635181+00:00"
     },
     "15520": {
       "repo": "duckdb/duckdb",
