@@ -1,6 +1,6 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-09-29T03:27:44.942259+00:00",
+  "generated_at": "2026-09-30T03:11:51.667869+00:00",
   "issues": {
     "15280": {
       "repo": "langfuse/langfuse",
@@ -234,6 +234,54 @@
       "confidence": "high",
       "first_seen": "2026-09-27T02:44:05.167496+00:00",
       "processed_at": "2026-09-27T02:44:05.167496+00:00"
+    },
+    "18053": {
+      "repo": "langfuse/langfuse",
+      "number": 18053,
+      "title": "Codex observability Stop hook can exhaust memory on very large rollouts",
+      "source_url": "https://github.com/langfuse/langfuse/issues/18053",
+      "labels": [
+        "bug",
+        "performance",
+        "feat-tracing"
+      ],
+      "reactions": 1,
+      "created_at": "2026-09-29T19:26:11Z",
+      "updated_at": "2026-09-29T21:10:16Z",
+      "need_score": 10.8,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue describes a clear performance bottleneck (loading entire large JSONL files into memory) and suggests a concrete direction (streaming/parsing with bounded memory while preserving rollout-order turn numbers and retry safety). However, implementing streaming JSONL processing without insider knowledge of the specific data structures and existing export retry logic requires careful work to avoid breaking trace ID generation or upload states.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "The Codex observability Stop hook loads an entire JSONL rollout file into memory at once, exhausting Node.js heap memory and crashing the process during large rollout sessions.",
+      "root_cause_hypothesis": "The Stop hook implementation reads the entire rollout JSONL file into memory via fs.readFileSync or equivalent buffer/string loading before parsing lines into turn objects, causing Node.js out-of-memory errors on large session files.",
+      "suggested_approach": "Refactor the rollout reader into a streaming pipeline (e.g., using Node's readline or stream interface) that processes and exports turns incrementally with bounded memory. Track rollout-order turn indices sequentially, confirm successful upload before recording upload progress, and enforce a maximum line/record size limit to safely handle oversized JSONL lines.",
+      "likely_areas": [
+        "src/hooks/stop.ts",
+        "src/parser/jsonl.ts",
+        "src/exporter/traceExporter.ts",
+        "src/state/uploadState.ts"
+      ],
+      "prerequisites": [
+        "Familiarity with Node.js stream and readline APIs",
+        "Understanding of the rollout file structure, trace ID generation scheme, and turn tracking logic",
+        "A local test fixture or synthetic large rollout file (e.g., >40MB JSONL with many turns and large single lines)"
+      ],
+      "implementation_steps": [
+        "Replace full-file reading (e.g. fs.readFile/readFileSync) in the Stop hook with a stream-based line reader using readline.createInterface or equivalent stream transform.",
+        "Add line-length validation to enforce a maximum allowable record size per JSONL line, logging a recoverable error or skipping invalid/oversized records gracefully without aborting the entire process.",
+        "Maintain a running counter for the rollout-order turn number to preserve deterministic trace ID generation across streamed turns.",
+        "Implement chunked or sequential batch export logic with backpressure handling so memory consumption remains strictly bounded regardless of rollout size.",
+        "Update upload confirmation and checkpointing logic so a turn is only marked as uploaded or committed after its export API call succeeds, enabling safe resume/retry on failure.",
+        "Add unit and integration tests verifying stream parsing under limited memory, validation of oversized lines, accurate turn numbering, and state persistence upon partial failures."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-09-30T03:11:51.667805+00:00",
+      "processed_at": "2026-09-30T03:11:51.667805+00:00"
     }
   }
 }
