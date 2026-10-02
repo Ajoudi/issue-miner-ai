@@ -1,6 +1,6 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-10-01T03:17:30.053539+00:00",
+  "generated_at": "2026-10-02T03:18:29.922734+00:00",
   "issues": {
     "15280": {
       "repo": "langfuse/langfuse",
@@ -247,41 +247,43 @@
       ],
       "reactions": 1,
       "created_at": "2026-09-29T19:26:11Z",
-      "updated_at": "2026-09-29T21:10:16Z",
-      "need_score": 10.8,
+      "updated_at": "2026-09-30T03:32:34Z",
+      "need_score": 12.8,
       "feasibility": "medium",
-      "feasibility_reason": "The issue describes a clear performance bottleneck (loading entire large JSONL files into memory) and suggests a concrete direction (streaming/parsing with bounded memory while preserving rollout-order turn numbers and retry safety). However, implementing streaming JSONL processing without insider knowledge of the specific data structures and existing export retry logic requires careful work to avoid breaking trace ID generation or upload states.",
+      "feasibility_reason": "The issue clearly describes the memory exhaustion problem due to loading full JSONL rollout files into memory, and points to a previous PR (langfuse/codex-observability-plugin#107). However, implementing streamed parsing of large JSONL records while preserving rollout-order turn numbers and robust retry logic requires careful streaming/chunking implementation in Node.js, and lacks specific implementation details or error code definitions.",
       "self_contained": true,
       "needs_special_environment": false,
-      "blockers": [],
+      "blockers": [
+        "Requires designing a robust streaming JSONL parser or line-by-line processor in Node.js that maintains state and handle oversized single records safely."
+      ],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "The Codex observability Stop hook loads an entire JSONL rollout file into memory at once, exhausting Node.js heap memory and crashing the process during large rollout sessions.",
-      "root_cause_hypothesis": "The Stop hook implementation reads the entire rollout JSONL file into memory via fs.readFileSync or equivalent buffer/string loading before parsing lines into turn objects, causing Node.js out-of-memory errors on large session files.",
-      "suggested_approach": "Refactor the rollout reader into a streaming pipeline (e.g., using Node's readline or stream interface) that processes and exports turns incrementally with bounded memory. Track rollout-order turn indices sequentially, confirm successful upload before recording upload progress, and enforce a maximum line/record size limit to safely handle oversized JSONL lines.",
+      "problem_summary": "The Codex observability Stop hook reads entire JSONL rollout files into memory at once, causing Node.js out-of-memory (OOM) crashes on large sessions during turn processing.",
+      "root_cause_hypothesis": "The Stop hook implementation performs a full-file read (e.g., fs.readFile or equivalent) and parses all JSONL records in bulk instead of streaming line-by-line, causing Node's heap to exceed memory limits when rollouts grow large.",
+      "suggested_approach": "Refactor the rollout reader to use a streaming interface (such as Node's readline or stream pipeline) to parse records incrementally with a bounded buffer. Track rollout-order turn indices sequentially for deterministic trace IDs, export turns individually or in small batches, persist upload state only upon confirmed export, and enforce a maximum line/record byte size with explicit error handling.",
       "likely_areas": [
-        "src/hooks/stop.ts",
-        "src/parser/jsonl.ts",
-        "src/exporter/traceExporter.ts",
-        "src/state/uploadState.ts"
+        "plugins/codex-observability/src/hooks/stop.ts",
+        "plugins/codex-observability/src/parsers/rollout.ts",
+        "plugins/codex-observability/src/services/uploader.ts",
+        "plugins/codex-observability/src/state/uploadState.ts"
       ],
       "prerequisites": [
-        "Familiarity with Node.js stream and readline APIs",
-        "Understanding of the rollout file structure, trace ID generation scheme, and turn tracking logic",
-        "A local test fixture or synthetic large rollout file (e.g., >40MB JSONL with many turns and large single lines)"
+        "Reproduce memory spike or OOM using a synthetic large JSONL rollout (>50MB or many turns) with Node default heap settings.",
+        "Verify existing trace ID generation logic and dependency on sequential turn ordering."
       ],
       "implementation_steps": [
-        "Replace full-file reading (e.g. fs.readFile/readFileSync) in the Stop hook with a stream-based line reader using readline.createInterface or equivalent stream transform.",
-        "Add line-length validation to enforce a maximum allowable record size per JSONL line, logging a recoverable error or skipping invalid/oversized records gracefully without aborting the entire process.",
-        "Maintain a running counter for the rollout-order turn number to preserve deterministic trace ID generation across streamed turns.",
-        "Implement chunked or sequential batch export logic with backpressure handling so memory consumption remains strictly bounded regardless of rollout size.",
-        "Update upload confirmation and checkpointing logic so a turn is only marked as uploaded or committed after its export API call succeeds, enabling safe resume/retry on failure.",
-        "Add unit and integration tests verifying stream parsing under limited memory, validation of oversized lines, accurate turn numbering, and state persistence upon partial failures."
+        "Replace full-file loading (e.g., fs.readFileSync / fs.promises.readFile) in the Stop hook rollout reader with a streaming implementation using Node.js 'readline' or 'stream' module.",
+        "Introduce a configurable maximum record size check while streaming each line; fail fast with a controlled, descriptive error if a single JSONL record exceeds this threshold.",
+        "Maintain an incremental rollout-order turn counter during stream iteration so deterministic trace IDs remain consistent with previous behavior.",
+        "Process and export turns incrementally in bounded batches or one-by-one rather than buffering all parsed turns before export.",
+        "Ensure state persistence (marking a turn as uploaded or recording the last uploaded offset/index) occurs strictly after the export operation succeeds, avoiding false positives on interrupted or failed uploads.",
+        "Handle stream errors, JSON parse failures, and network upload rejections with graceful exits and structured error logs instead of unhandled exceptions.",
+        "Add unit and integration tests covering: streaming large synthetic rollouts with constrained memory, error handling for single records exceeding the size limit, and retry resumption after simulated export failures."
       ],
       "confidence": "high",
       "first_seen": "2026-09-30T03:11:51.667805+00:00",
-      "processed_at": "2026-09-30T03:11:51.667805+00:00"
+      "processed_at": "2026-10-02T03:18:29.922665+00:00"
     }
   }
 }
