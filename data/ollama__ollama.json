@@ -1,6 +1,6 @@
 {
   "repo": "ollama/ollama",
-  "generated_at": "2026-10-03T03:04:01.084080+00:00",
+  "generated_at": "2026-10-04T03:33:31.567087+00:00",
   "issues": {
     "14233": {
       "repo": "ollama/ollama",
@@ -135,6 +135,50 @@
       "processed_at": "2026-08-24T00:46:42.194695+00:00",
       "resolved": true,
       "resolved_at": "2026-09-02T02:08:11.551740+00:00"
+    },
+    "1036": {
+      "repo": "ollama/ollama",
+      "number": 1036,
+      "title": "`unexpected EOF` when running `ollama pull`",
+      "source_url": "https://github.com/ollama/ollama/issues/1036",
+      "labels": [
+        "bug",
+        "networking"
+      ],
+      "reactions": 3,
+      "created_at": "2023-11-07T19:47:32Z",
+      "updated_at": "2026-04-25T07:17:45Z",
+      "need_score": 20.4,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue describes a transient network download failure resulting in an unexpected EOF where the download gets stuck instead of properly retrying or recovering automatically, requiring a manual stop and resume. While the symptom is clear and points to download.go, network retry/resumption logic in distributed downloads can be tricky to get right without reproducing the exact network interruption.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Model downloads via `ollama pull` fail or hang with `unexpected EOF` or `max retries exceeded` when downloading layer parts over unstable network connections.",
+      "root_cause_hypothesis": "The concurrent part downloader in `download.go` does not cleanly handle mid-stream connection drops or truncated HTTP responses (unexpected EOF). When an EOF occurs during a part's HTTP body read, the retry mechanism may not reset the stream or offset appropriately, or worker goroutines may become stuck waiting on parts that fail without completing or signaling progress accurately.",
+      "suggested_approach": "Harden chunk/part download error handling and retry logic in `server/download.go`. Specifically, treat `io.ErrUnexpectedEOF` as a transient retryable error, ensure HTTP request bodies and responses are properly closed before retrying, add exponential backoff for retries, and ensure the worker synchronization pool properly handles retry and cancellation states without deadlocking.",
+      "likely_areas": [
+        "server/download.go",
+        "server/images.go"
+      ],
+      "prerequisites": [
+        "Working Go development environment capable of building Ollama",
+        "Ability to mock HTTP range request downloads and simulate network drops (e.g. truncated responses, unexpected EOF)"
+      ],
+      "implementation_steps": [
+        "Locate the layer/part download logic in `server/download.go` where `io.Copy`, `io.ReadFull`, or custom chunk readers read from the HTTP response body.",
+        "Inspect the retry loop around part downloads to verify how `io.ErrUnexpectedEOF` and other network read errors are handled, ensuring the response body is drained and closed before initiating a retry.",
+        "Verify that retries for a part either resume from the byte offset already downloaded (using HTTP Range headers if supported) or completely re-request the specific part slice from the beginning.",
+        "Add or improve backoff and jitter between retry attempts to handle transient server or CDN rate-limiting and connection drop spikes.",
+        "Ensure error propagation and goroutine synchronization in the worker pool do not cause the pull progress to hang when an individual part download encounters repeated failures.",
+        "Write unit and integration tests simulating mid-stream truncated downloads to confirm that failed parts retry successfully and downloads complete without hanging."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-10-04T03:33:31.567002+00:00",
+      "processed_at": "2026-10-04T03:33:31.567002+00:00"
     }
   }
 }
