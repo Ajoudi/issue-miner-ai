@@ -1,6 +1,6 @@
 {
   "repo": "ClickHouse/ClickHouse",
-  "generated_at": "2026-10-07T03:39:48.369028+00:00",
+  "generated_at": "2026-10-08T03:50:07.732695+00:00",
   "issues": {
     "80561": {
       "repo": "ClickHouse/ClickHouse",
@@ -110,41 +110,39 @@
       "updated_at": "2026-09-04T13:27:59Z",
       "need_score": 14.8,
       "feasibility": "medium",
-      "feasibility_reason": "The issue describes a scenario where an S3 read operation gets stuck on retries during a broken link, preventing query cancellation. While the problem is clear, it involves deep integration with the S3 client retry logic and ClickHouse query cancellation mechanisms across threads.",
+      "feasibility_reason": "The issue describes a scenario where an S3 read operation hangs on retries with a broken link and does not check for query cancellation during the blocking network or retry loop. While the reproduction is clear, modifying the S3 client retry loops to properly respect query cancellation tokens requires careful handling of C++ threading and AWS SDK integration to avoid regressions.",
       "self_contained": true,
       "needs_special_environment": false,
-      "blockers": [
-        "Requires understanding of ClickHouse S3 client integration and query cancellation flow."
-      ],
+      "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Queries reading from an unreachable or broken S3 URL hang during retry/network operations and cannot be promptly cancelled or terminated by query limits.",
-      "root_cause_hypothesis": "S3 read/fetch operations perform blocking network calls with retries inside ReadBufferFromS3 / S3Source before a single block is generated. Cancellation checks (and timeout limit checks) primarily occur between blocks or pipeline step iterations, and the S3 retry loop or HTTP client calls do not inspect query cancellation status (`isCancelled()`) or interrupt ongoing network/retry sleeps.",
-      "suggested_approach": "Inject periodic query cancellation checks into S3 read/retry loops and pass cancellation callbacks/tokens to the underlying HTTP/S3 client or ReadBuffer retry mechanisms. Ensure that when a query cancellation packet is received or `is_killed` is set, the retry backoff sleep terminates immediately and S3 client requests abort promptly instead of blocking until all retry attempts exhaust.",
+      "problem_summary": "Queries reading from unreachable or broken S3 endpoints hang for long periods due to retry loops and cannot be cancelled until all retries or block generations complete.",
+      "root_cause_hypothesis": "Query cancellation checks and timeout limits are primarily checked between pipeline processor blocks. During S3 read operations, the thread is blocked inside the S3 storage reader (e.g., ReadBufferFromS3 or AWS SDK request/retry loops) without checking query cancellation status or passing a cancellation token to the HTTP/S3 client.",
+      "suggested_approach": "Inject query cancellation checks and cancellation hooks into the S3 read buffer, retry loops, and HTTP request callbacks so that network retries and blocking reads abort immediately when the query is cancelled or timed out.",
       "likely_areas": [
         "src/IO/S3/ReadBufferFromS3.cpp",
-        "src/IO/S3/ReadBufferFromS3.h",
-        "src/IO/S3Common.cpp",
+        "src/IO/S3/Client.cpp",
+        "src/Storages/StorageS3.cpp",
         "src/Processors/Sources/S3Source.cpp",
-        "src/Server/TCPHandler.cpp",
-        "src/Interpreters/ProcessList.cpp"
+        "src/Interpreters/Context.cpp"
       ],
       "prerequisites": [
-        "Familiarity with ClickHouse I/O architecture, particularly ReadBufferFromS3 and S3 client retry strategies.",
-        "Understanding of ClickHouse QueryPipeline, Processors cancellation semantics, and ProcessListElement query execution limits."
+        "Local ClickHouse build environment with S3 support enabled",
+        "Understanding of ClickHouse query cancellation mechanism (QueryStatus, TCPHandler, killQuery)",
+        "Understanding of ReadBufferFromS3 and AWS SDK integration in ClickHouse"
       ],
       "implementation_steps": [
-        "Inspect the retry loop and initial connection/download logic in `ReadBufferFromS3` and `S3Common` to determine where execution blocks when connecting to an invalid or unreachable S3 endpoint.",
-        "Check how backoff sleeps and retry attempts are executed (e.g., in AWS SDK retry strategy or custom retry loops) and ensure sleep operations can be interrupted by `checkTimeLimit()` or query cancellation checks.",
-        "Wire query cancellation hooks or pass query context / `CancellationCode` checks into `ReadBufferFromS3` so that `isCancelled()` can be checked before and between retry attempts.",
-        "Ensure `TCPHandler` sets the cancellation state or kills the query status so that the cancellation signal is visible across threads executing object storage reads.",
-        "Verify whether `S3Source` or its processor can run asynchronously or check cancellation while waiting on `generate()` / reading data.",
-        "Write integration or functional tests attempting to cancel a query reading from an unreachable S3 endpoint (or a simulated unresponsive endpoint) and verify that cancellation happens promptly without waiting for the full retry timeout."
+        "Trace the execution flow when initializing and reading from S3 (StorageS3, S3Source, ReadBufferFromS3, and underlying AWS SDK requests).",
+        "Identify where network retries and wait loops occur (e.g., inside ReadBufferFromS3 retry logic or custom AWS Client retry strategy).",
+        "Expose or pass the cancellation predicate / context query status (such as `is_cancelled` or `isKilled()`) down to `ReadBufferFromS3` and the retry callbacks.",
+        "Add a cancellation check before each retry attempt and during retry sleep/backoff periods to terminate early if the query was cancelled.",
+        "Ensure `ReadBufferFromS3` and `S3Source` abort gracefully by throwing an exception or returning EOF when cancellation is detected.",
+        "Add integration or functional tests (using `clickhouse-client`) verifying that a query against an unreachable S3 endpoint can be cancelled quickly via Ctrl+C / `KILL QUERY` without waiting for maximum retries."
       ],
-      "confidence": "medium",
+      "confidence": "high",
       "first_seen": "2026-08-13T01:17:17.691618+00:00",
-      "processed_at": "2026-09-11T02:15:26.101135+00:00"
+      "processed_at": "2026-10-08T03:50:07.732630+00:00"
     },
     "58928": {
       "repo": "ClickHouse/ClickHouse",

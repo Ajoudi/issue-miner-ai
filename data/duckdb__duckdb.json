@@ -1,6 +1,6 @@
 {
   "repo": "duckdb/duckdb",
-  "generated_at": "2026-10-07T03:33:54.694350+00:00",
+  "generated_at": "2026-10-08T03:48:07.415017+00:00",
   "issues": {
     "13069": {
       "repo": "duckdb/duckdb",
@@ -408,6 +408,52 @@
       "confidence": "high",
       "first_seen": "2026-09-28T02:49:10.187153+00:00",
       "processed_at": "2026-09-28T02:49:10.187153+00:00"
+    },
+    "15173": {
+      "repo": "duckdb/duckdb",
+      "number": 15173,
+      "title": "Multiple in-memory duckdb instances clash when writing to temp directory",
+      "source_url": "https://github.com/duckdb/duckdb/issues/15173",
+      "labels": [
+        "reproduced"
+      ],
+      "reactions": 5,
+      "created_at": "2024-12-07T01:28:17Z",
+      "updated_at": "2026-10-02T01:03:21Z",
+      "need_score": 24.0,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue describes a race condition when multiple in-memory DuckDB instances write to the same default temporary directory (.tmp), causing file clashing. Fixing this requires modifying DuckDB's temporary file allocation logic to use unique subdirectories or process-specific/randomized filenames. While actionable, it requires understanding DuckDB's internal temp storage management across multiple processes.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Concurrent in-memory DuckDB processes using default temporary storage settings collide by reading, overwriting, and deleting identically named temporary spill files (e.g., in `.tmp/`).",
+      "root_cause_hypothesis": "When running in-memory databases, DuckDB defaults to a fixed relative directory (such as `.tmp`) with deterministic temporary file names (e.g., `duckdb_temp_storage-*.tmp`). Because temporary file names lack process-unique identifiers or randomized subdirectories, multiple independent processes operating in the same working directory access and mutate the same temporary files concurrently.",
+      "suggested_approach": "Isolate temporary files per DuckDB instance by either creating a unique temporary subdirectory (e.g., incorporating process ID and a UUID/random token) within the configured temp directory, or incorporating a unique identifier into the temp file naming scheme, ensuring the unique directory/files are cleaned up when the database instance shuts down.",
+      "likely_areas": [
+        "src/storage/standard_buffer_manager.cpp",
+        "src/storage/buffer/temporary_file_handle.cpp",
+        "src/include/duckdb/storage/standard_buffer_manager.hpp",
+        "src/main/database_manager.cpp",
+        "src/common/file_system.cpp"
+      ],
+      "prerequisites": [
+        "Inspect how `StandardBufferManager` and `TemporaryFileHandle` construct temp directory paths and temp file names.",
+        "Review previous attempts and discussions (e.g., PR #15276 commit cf74f08f37d446d071ddb32b193a5b64c7fd4dba) to understand why earlier fixes were reverted and what design constraints were noted."
+      ],
+      "implementation_steps": [
+        "Locate the logic in `StandardBufferManager` where the temporary directory path is determined and initialized for in-memory databases.",
+        "Introduce unique temporary subdirectory generation (e.g., `.tmp/duckdb_temp_<pid>_<uuid>/` or an instance-specific random identifier) when an in-memory database initializes its buffer manager temp directory, or append a unique prefix to generated temp file names.",
+        "Ensure directory creation logic in `FileSystem` safely creates the instance-specific temp directory upon first allocation.",
+        "Implement cleanup logic during `StandardBufferManager` destruction / database shutdown to delete the instance-specific temporary directory and all files within it.",
+        "Handle abnormal process termination gracefully so that unique directory names do not conflict with subsequent runs.",
+        "Add regression tests (e.g., in Python or via multi-process CLI integration tests) that launch two concurrent in-memory DuckDB instances with restricted memory limits spilling to the default temp directory simultaneously, verifying that both complete without `IO Error`."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-10-08T03:48:07.414952+00:00",
+      "processed_at": "2026-10-08T03:48:07.414952+00:00"
     }
   }
 }

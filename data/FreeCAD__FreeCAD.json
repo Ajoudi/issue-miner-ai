@@ -1,6 +1,6 @@
 {
   "repo": "FreeCAD/FreeCAD",
-  "generated_at": "2026-09-02T02:19:32.221958+00:00",
+  "generated_at": "2026-10-08T03:53:29.807384+00:00",
   "issues": {
     "24238": {
       "repo": "FreeCAD/FreeCAD",
@@ -18,39 +18,38 @@
       "updated_at": "2026-05-06T11:04:59Z",
       "need_score": 17.8,
       "feasibility": "medium",
-      "feasibility_reason": "The issue describes a specific geometric trim failure involving external lines and circles in the Sketcher workbench. While labeled as a good first issue and confirmed, resolving geometric intersection and trimming logic requires familiarity with CAD kernel interactions (OCC) and the Sketcher's trim tool implementation, which can be non-trivial for an outsider.",
+      "feasibility_reason": "The issue is confirmed and described with a sample file and screenshots, making it reproducible. However, debugging geometric trim algorithms in FreeCAD's Sketcher workbench involving external geometry (reference geometry) requires understanding OCC and Sketcher intersection logic.",
       "self_contained": true,
       "needs_special_environment": false,
-      "blockers": [
-        "Requires understanding of FreeCAD Sketcher trim algorithm and OCC geometry intersection logic"
-      ],
+      "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Sketcher's Trim tool fails when trimming normal sketch geometry (such as a full circle) against external geometry references, deleting the entire geometry rather than trimming it at the intersection point.",
-      "root_cause_hypothesis": "The intersection calculation in the Sketcher trim algorithm (e.g. within `SketchObject::trim` or the intersection search helper) only tests intersections between normal sketch geometry elements and ignores external geometry (`ExternalGeo` / negative index geometries), causing the algorithm to find no valid cutting intersections and delete the full circle.",
-      "suggested_approach": "Include external geometry elements when gathering intersecting curves for trimming, calculate the intersection points between the target geometry (the circle) and the external geometry curves, and use these intersection points as valid split/trim boundaries without modifying the external geometry itself.",
+      "problem_summary": "Sketcher's trim tool removes an entire circle instead of cutting it at intersections with external geometry lines.",
+      "root_cause_hypothesis": "The intersection calculation logic in the Sketcher trim command only considers normal/internal sketch geometry (positive geometry indices) and ignores or skips external geometry elements (stored separately or indexed with negative IDs), causing the trim algorithm to detect zero intersection points and delete the entire circle.",
+      "suggested_approach": "Include external geometry curves when finding intersections for the curve being trimmed, ensuring intersection points can be computed with projected external lines/curves while ensuring the external geometry itself remains unmodified.",
       "likely_areas": [
         "src/Mod/Sketcher/App/SketchObject.cpp",
-        "src/Mod/Sketcher/App/Sketch.cpp",
-        "src/Mod/Sketcher/Gui/EditModeTrimCoinManager.cpp",
-        "src/Mod/Sketcher/Gui/CommandCreateGeo.cpp"
+        "src/Mod/Sketcher/App/SketchGeometryExtension.cpp",
+        "src/Mod/Sketcher/Gui/CommandSketcherTools.cpp",
+        "src/Mod/Sketcher/App/SketchAnalysis.cpp"
       ],
       "prerequisites": [
-        "FreeCAD development environment set up and capable of building the Sketcher module",
-        "Understanding of Sketcher's geometry indexing (positive indices for internal sketch geometries, negative indices for external geometries) and OCC intersection algorithms"
+        "Local FreeCAD build environment with Sketcher module enabled",
+        "Understanding of SketchObject internal vs. external geometry representations and GeoEnum indexing"
       ],
       "implementation_steps": [
-        "Locate the trim intersection calculation routines in `src/Mod/Sketcher/App/SketchObject.cpp` (e.g., methods handling `trim`, `seekIntersectionPoints`, or equivalent).",
-        "Inspect how candidate intersecting geometries are collected; identify where external geometries (negative index geometries in `SketchObject::ExternalGeo`) are currently excluded or omitted.",
-        "Update the intersection detection logic so that intersections with external geometries are computed using OpenCASCADE intersection algorithms and added to the list of trim cutting points.",
-        "Ensure that when the target geometry is split or trimmed, new constraint attachments and vertex creation only modify the sketch's internal geometries and do not attempt to modify the read-only external geometry.",
-        "Handle the special case for full circles (converting circle to an arc between intersection points or trimming at the clicked segment).",
-        "Add unit/regression tests in `src/Mod/Sketcher/App/SketchObjectTest.py` verifying that trimming a circle against an external line correctly creates an arc bounded by the intersection."
+        "Inspect the trim tool implementation (search for `trim` methods in `SketchObject` and `CommandSketcherTools`) to locate where intersection points with candidate cutting geometries are computed.",
+        "Examine how candidate intersecting curves are collected: determine whether the iteration is restricted to `sketch->getGeometry()` without considering `sketch->getExternalGeometry()` / negative indices.",
+        "Update the intersection gathering logic to also include external geometries (or projected curves of external geometry) as potential cutting entities.",
+        "Ensure intersection points against bounded external geometry (e.g., line segments) properly check parameter bounds / tolerance.",
+        "Handle constraint creation or endpoint positioning when splitting a circle into an arc so that point-on-object or coincidence constraints with the external geometry work properly if auto-constraints are enabled.",
+        "Verify that trimming an external curve directly is still disallowed or prevented, and only normal geometries are modified/trimmed.",
+        "Add automated or manual regression tests verifying trimming circles, arcs, and lines against external geometry lines and curves."
       ],
       "confidence": "high",
       "first_seen": "2026-08-19T09:25:03.639175+00:00",
-      "processed_at": "2026-08-19T09:25:03.639175+00:00"
+      "processed_at": "2026-10-08T03:53:29.807317+00:00"
     },
     "27762": {
       "repo": "FreeCAD/FreeCAD",
@@ -101,7 +100,9 @@
       ],
       "confidence": "high",
       "first_seen": "2026-08-19T09:25:47.229701+00:00",
-      "processed_at": "2026-08-19T09:25:47.229701+00:00"
+      "processed_at": "2026-08-19T09:25:47.229701+00:00",
+      "resolved": true,
+      "resolved_at": "2026-10-08T03:50:12.279732+00:00"
     },
     "19709": {
       "repo": "FreeCAD/FreeCAD",
@@ -252,6 +253,158 @@
       "confidence": "high",
       "first_seen": "2026-09-01T02:58:32.657594+00:00",
       "processed_at": "2026-09-01T02:58:32.657594+00:00"
+    },
+    "21091": {
+      "repo": "FreeCAD/FreeCAD",
+      "number": 21091,
+      "title": "Link: On copy, don't preselect App::Link sources",
+      "source_url": "https://github.com/FreeCAD/FreeCAD/issues/21091",
+      "labels": [
+        "Mod: Core",
+        "Type: Feature",
+        "Good first issue",
+        "Topic: Link",
+        "Hackathon"
+      ],
+      "reactions": 2,
+      "created_at": "2025-05-01T09:22:13Z",
+      "updated_at": "2026-08-27T18:40:33Z",
+      "need_score": 21.6,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue requests changing the default behavior of the copy dialog for App::Link objects to not preselect link sources. While marked as a good first issue, navigating the FreeCAD copy/duplicate dialog logic and App::Link source selection code without prior codebase knowledge may take some investigation.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "When copying an App::Link object (or an assembly containing links), the copy/duplicate dependency selection dialog automatically preselects the linked source objects for copying, which duplicates the source objects instead of copying just the link that references the existing source.",
+      "root_cause_hypothesis": "The copy dependency resolution logic in FreeCAD (likely in Gui::Application, Dialog::DlgCheckableTree, or App::DocumentObject/App::LinkBaseExtension dependency traversal) includes outbound link target dependencies when gathering objects to be preselected in the copy dialog, without distinguishing between structural child objects and linked references.",
+      "suggested_approach": "Adjust the dependency gathering or pre-selection logic used during clipboard copy / duplicate dialog creation so that App::Link / App::LinkBase linked targets (or non-contained referenced objects) are excluded from the preselected objects by default, while keeping them visible or selectable in the dialog if needed.",
+      "likely_areas": [
+        "src/Gui/Application.cpp",
+        "src/Gui/DlgCheckableTree.cpp",
+        "src/Gui/DlgCheckableTree.h",
+        "src/Gui/CommandDoc.cpp",
+        "src/App/Link.cpp"
+      ],
+      "prerequisites": [
+        "Working FreeCAD development environment capable of building the GUI",
+        "Understanding of FreeCAD's document object dependency tree and App::Link architecture"
+      ],
+      "implementation_steps": [
+        "Locate the copy command implementation and the dialog creation (typically in Gui::Application::copy or Gui::Dialog::DlgCheckableTree / Gui::CommandDoc).",
+        "Trace where dependencies are collected and marked as checked/preselected before showing the copy dialog to the user.",
+        "Inspect how App::Link targets are retrieved, specifically checking whether the dependency is marked as a link reference (e.g. via isLinkSource, App::LinkBase::getLinkedObject, or PropertyLink / PropertyXLink).",
+        "Update the dependency collection or check state logic so that objects referenced purely via an App::Link / App::LinkBase reference are either excluded from the prechecked list or defaulted to unchecked.",
+        "Verify that the paste/duplicate logic properly preserves the reference to the original link source when the source itself is not copied.",
+        "Manually test copying an App::Link alone and an App::Part containing App::Links to ensure only the link/part is preselected and paste correctly points to the existing linked objects.",
+        "Add or update unit/GUI tests covering copying objects with links to ensure no regression."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-10-08T03:52:12.679412+00:00",
+      "processed_at": "2026-10-08T03:52:12.679412+00:00"
+    },
+    "32557": {
+      "repo": "FreeCAD/FreeCAD",
+      "number": 32557,
+      "title": "Sketcher: Scale default shortcut (Z, P, S) conflicts with Rotate / Polar Transform (Z, P)",
+      "source_url": "https://github.com/FreeCAD/FreeCAD/issues/32557",
+      "labels": [
+        "Topic: User Interface",
+        "Mod: Sketcher",
+        "Good first issue",
+        "Type: Has workaround",
+        "Status: Confirmed"
+      ],
+      "reactions": 2,
+      "created_at": "2026-09-09T23:56:55Z",
+      "updated_at": "2026-09-10T15:08:56Z",
+      "need_score": 21.6,
+      "feasibility": "high",
+      "feasibility_reason": "The issue describes a simple shortcut conflict in the Sketcher workbench which can be resolved by changing the default keyboard shortcut for the Scale or Rotate/Polar Transform tool in the UI definition or command mapping files.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "under_1h",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "The Sketcher tool 'Scale' has a default shortcut sequence ('Z, P, S') whose prefix ('Z, P') matches the shortcut for 'Rotate / Polar Transform', causing Qt to immediately trigger the Rotate command before 'S' can be pressed.",
+      "root_cause_hypothesis": "The accelerator shortcut string defined for the Sketcher Scale command begins with an existing complete multi-key shortcut assigned to another command ('Z, P'), creating an unreachable prefix conflict in FreeCAD's shortcut handler.",
+      "suggested_approach": "Locate the command definition for Sketcher Scale (and related transform tools in Sketcher) and update the shortcut accelerator string so that it does not share an active prefix with another shortcut, ensuring all shortcuts in the group remain distinct and reachable.",
+      "likely_areas": [
+        "src/Mod/Sketcher/Gui/CommandAlterGeometry.cpp",
+        "src/Mod/Sketcher/Gui/CommandTransform.cpp",
+        "src/Mod/Sketcher/Gui/CommandSketcherTools.cpp"
+      ],
+      "prerequisites": [
+        "Ability to build FreeCAD and run the Sketcher workbench locally",
+        "Familiarity with FreeCAD's `DEF_STD_CMD_A` command macro and `sAccel` shortcut definition conventions"
+      ],
+      "implementation_steps": [
+        "Search the codebase in `src/Mod/Sketcher/Gui/` for `\"Z, P, S\"` and `\"Z, P\"` to identify where the Scale and Rotate / Polar Transform commands are defined.",
+        "Inspect the existing shortcuts in the same tool group/toolbar to review for any other conflicting multi-key prefixes.",
+        "Update the shortcut string for the Scale command (e.g. to a distinct sequence that does not conflict with existing bindings, aligning with community/maintainer consensus on shortcut assignments).",
+        "Verify whether any documentation, tooltips, or tests reference the old shortcut string.",
+        "Compile FreeCAD and open the Sketcher workbench.",
+        "Test that pressing the shortcuts for both Rotate / Polar Transform and Scale triggers their respective tools without interference."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-10-08T03:52:19.920984+00:00",
+      "processed_at": "2026-10-08T03:52:19.920984+00:00"
+    },
+    "24440": {
+      "repo": "FreeCAD/FreeCAD",
+      "number": 24440,
+      "title": "PartDesign: UX could use optimization in order to add elements on some lists",
+      "source_url": "https://github.com/FreeCAD/FreeCAD/issues/24440",
+      "labels": [
+        "Mod: Part Design",
+        "Status: Needs confirmation",
+        "Topic: User Interface",
+        "Type: Feature",
+        "Good first issue"
+      ],
+      "reactions": 3,
+      "created_at": "2025-10-04T18:30:07Z",
+      "updated_at": "2026-10-02T11:59:28Z",
+      "need_score": 21.4,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue requests UX improvements across multiple PartDesign tasks (Additive/Subtractive Pipe, profiles, sections) to match the selection behavior of Fillet/Chamfer and adding standard keyboard shortcuts (Ctrl+A, Ctrl+Click, Shift+Click) to lists. While straightforward Qt UI work, it touches multiple task panels and list widgets in the PartDesign workbench, requiring familiarity with FreeCAD's task panel architecture.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "PartDesign Pipe (and Loft) task panels have an inefficient workflow for adding/removing edges, sections, and auxiliary profiles: users must click the 'Add' button repeatedly for each element, and the list widgets lack standard multi-selection capabilities (Ctrl+Click, Shift+Click, Ctrl+A).",
+      "root_cause_hypothesis": "The selection handlers in TaskPipeParameters (and related Loft/Sweep panels) disconnect or exit the selection observer after a single sub-element pick instead of maintaining an active toggle/selection mode like Fillet/Chamfer panels. Additionally, the corresponding QListWidgets in the UI files default to single selection mode (QAbstractItemView::SingleSelection) rather than ExtendedSelection.",
+      "suggested_approach": "Update the Add/Remove buttons in TaskPipeParameters and TaskLoftParameters to act as toggle buttons that keep selection mode active until toggled off or another tool is selected (matching the behavior in TaskFilletParameters/TaskChamferParameters). Also configure the QListWidget instances to use ExtendedSelection mode to support Ctrl+Click, Shift+Click, and Ctrl+A for selecting multiple items.",
+      "likely_areas": [
+        "src/Mod/PartDesign/Gui/TaskPipeParameters.cpp",
+        "src/Mod/PartDesign/Gui/TaskPipeParameters.h",
+        "src/Mod/PartDesign/Gui/TaskPipeParameters.ui",
+        "src/Mod/PartDesign/Gui/TaskLoftParameters.cpp",
+        "src/Mod/PartDesign/Gui/TaskLoftParameters.h",
+        "src/Mod/PartDesign/Gui/TaskLoftParameters.ui",
+        "src/Mod/PartDesign/Gui/TaskDressUpParameters.cpp"
+      ],
+      "prerequisites": [
+        "A working FreeCAD build environment (C++20, Qt 5/6, CMake).",
+        "Basic familiarity with FreeCAD's Gui::SelectionObserver and PartDesign TaskPanel architecture."
+      ],
+      "implementation_steps": [
+        "Examine TaskFilletParameters / TaskChamferParameters to observe how continuous edge selection and checkable add/remove toggle buttons are implemented with SelectionObserver.",
+        "Inspect TaskPipeParameters.ui and TaskLoftParameters.ui: update QListWidget selectionMode properties from SingleSelection to ExtendedSelection (or set them via code using setSelectionMode(QAbstractItemView::ExtendedSelection)).",
+        "Modify 'Add Edge', 'Remove Edge', 'Add Section', and 'Remove Section' push buttons to be checkable (setCheckable(true)) in the UI or constructors.",
+        "Update button click / toggle handlers in TaskPipeParameters.cpp and TaskLoftParameters.cpp to enter continuous selection mode while the button is checked, allowing the user to click multiple 3D elements sequentially without re-clicking the button.",
+        "Ensure that picking an element in 3D view adds/removes it from the list and model, but does not uncheck the button or detach the selection gate until the user explicitly toggles it off or finishes the task.",
+        "Update the list item deletion / remove logic so that when multiple list items are selected via Shift/Ctrl or Ctrl+A, clicking 'Remove' deletes all selected items at once.",
+        "Test Additive and Subtractive Pipe operations with single clicks, multiple consecutive 3D edge/section picks, and multi-selection list removals."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-10-08T03:52:56.104019+00:00",
+      "processed_at": "2026-10-08T03:52:56.104019+00:00"
     }
   }
 }

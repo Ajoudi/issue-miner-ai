@@ -1,6 +1,6 @@
 {
   "repo": "blender/blender",
-  "generated_at": "2026-09-02T02:22:52.074560+00:00",
+  "generated_at": "2026-10-08T03:55:43.844273+00:00",
   "issues": {
     "160373": {
       "repo": "blender/blender",
@@ -21,37 +21,85 @@
       "updated_at": "2026-06-25T18:10:34+02:00",
       "need_score": 16.0,
       "feasibility": "medium",
-      "feasibility_reason": "The issue clearly identifies a UI layout problem in the spreadsheet where vector column widths are calculated from the concatenated string rather than individual component widths. However, without direct access to the codebase UI drawing/layout code for spreadsheet columns, locating the exact file requires searching.",
+      "feasibility_reason": "The issue involves UI layout and column width calculation logic for vector types in the spreadsheet editor. While well-defined, it requires navigating Blender's custom UI and spreadsheet codebase without prior insider knowledge.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Spreadsheet vector/multi-component column auto-fit calculates column width by formatting the entire vector as a concatenated string. Because multi-component columns divide total space equally among components in the UI, an uneven distribution of component lengths (e.g. `1000000000, 0, 0`) leads to truncation of the widest component.",
-      "root_cause_hypothesis": "The column width estimation logic in the Spreadsheet editor (`estimate_max_column_width` or equivalent value-formatting calculation) evaluates the width of the whole concatenated string across components. When drawn, each sub-component gets an equal share of the column width (`total_width / num_components`), meaning the widest component requires `max(component_widths) * num_components` rather than `sum(component_widths)`.",
-      "suggested_approach": "Adjust the column width estimation logic for multi-component types (float2/3/4, int2/3, short2, color, quaternion) to measure the formatted string width of each component individually, find the maximum component width, and calculate the overall column width as `max_component_width * num_components` (plus any necessary spacing/margins).",
+      "problem_summary": "Auto-fitting vector column widths in the Spreadsheet editor results in text truncation when vector component values have significantly differing lengths (e.g., [1000000000, 0, 0]), because width estimation measures the concatenated string or sum of lengths rather than scaling based on the widest component.",
+      "root_cause_hypothesis": "The vector column width calculation in `estimate_max_column_width` formats all components together and measures the aggregate width (or estimates length from the joined string). However, the spreadsheet draws vector components in equally-sized sub-columns. When one component is much longer than the others, its sub-column width (total column width divided by component count) is insufficient, causing truncation.",
+      "suggested_approach": "Adjust the column width estimation logic for multi-component types (vector, color, quaternion, etc.) so that the estimated width is calculated based on the maximum component width multiplied by the number of components (plus inter-component spacing/padding), ensuring that each sub-column is wide enough to display the longest value without truncation.",
       "likely_areas": [
         "source/blender/editors/space_spreadsheet/spreadsheet_column.cc",
-        "source/blender/editors/space_spreadsheet/spreadsheet_column_values.cc",
-        "source/blender/editors/space_spreadsheet/spreadsheet_draw.cc",
-        "source/blender/editors/space_spreadsheet/spreadsheet_intern.hh"
+        "source/blender/editors/space_spreadsheet/spreadsheet_column.hh",
+        "source/blender/editors/space_spreadsheet/spreadsheet_layout.cc"
       ],
       "prerequisites": [
-        "A working Blender C++ development build environment.",
-        "Understanding of Blender's Spreadsheet editor column drawing and auto-fitting logic."
+        "Working Blender build environment (C/C++ and CMake)",
+        "Familiarity with the Spreadsheet Editor (`space_spreadsheet`) and Blender's UI text measurement functions (e.g., `BLF_width` or `UI_fontstyle_string_width`)"
       ],
       "implementation_steps": [
-        "Locate the column width estimation function in `source/blender/editors/space_spreadsheet/` (e.g., `estimate_max_column_width` or component drawing width calculation).",
-        "Identify how multi-component values (vectors, rotations, colors) are currently formatted and measured during column auto-fit.",
-        "Modify the measurement routine for composite data types to calculate the width of each individual sub-component string separately instead of measuring the concatenated vector string.",
-        "Set the estimated column component width to the maximum width found among all components multiplied by the component count, accounting for inter-component padding/separators.",
-        "Open the Spreadsheet editor, load a dataset with varying component lengths (e.g. `[1000000000, 0, 0]`), and double-click the column boundary to verify the auto-fit properly displays the longest component without truncation.",
-        "Test across various column data types (float3, int2, color, quaternion) and edge cases (negative values, standard float values) to ensure no regressions in layout or performance."
+        "Locate the column width estimation logic in `source/blender/editors/space_spreadsheet/` (specifically `estimate_max_column_width` or equivalent function handling column auto-sizing).",
+        "Inspect how multi-component data types (Float2/3/4, Int2/3, Color, Quaternion) are formatted and measured during column width estimation versus how cells are partitioned during rendering.",
+        "Update the estimation logic for multi-component values so that instead of measuring the concatenated formatted string, it measures or estimates the text width of each component individually, determines the maximum component width, and calculates the total width as `max_component_width * num_components` plus the padding/separator gaps.",
+        "Ensure non-monospaced font width differences and UI margins/icons are properly taken into account so sub-cells do not truncate.",
+        "Verify that single-component columns (floats, ints, strings, booleans) remain unaffected by the change.",
+        "Test by opening the reproduction .blend file with vector values like `(1000000000, 0, 0)` and double-clicking the column divider to auto-fit width, checking that the widest component is fully visible and no truncation occurs."
       ],
       "confidence": "high",
       "first_seen": "2026-08-24T00:52:22.891477+00:00",
-      "processed_at": "2026-08-24T00:52:22.891477+00:00"
+      "processed_at": "2026-10-08T03:54:34.357094+00:00"
+    },
+    "153791": {
+      "repo": "blender/blender",
+      "number": 153791,
+      "title": "Sculpt: Add ability to toggle X, Y, Z radial symmetry independent of count",
+      "source_url": "https://projects.blender.org/blender/blender/issues/153791",
+      "labels": [
+        "Meta/Good First Issue",
+        "Module/Sculpt, Paint & Texture",
+        "Type/To Do"
+      ],
+      "reactions": 2,
+      "created_at": "2026-02-02T23:50:50+01:00",
+      "updated_at": "2026-10-07T01:00:34+02:00",
+      "need_score": 16.6,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue provides a clear task list for adding a toggle for radial symmetry independent of the count, but it touches multiple subsystems (UI, Paint struct data, and sculpting/painting logic) in a complex C/C++ codebase like Blender.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Radial symmetry in Sculpt mode currently relies solely on a count per axis (where 1 means disabled), preventing users from toggling radial symmetry on/off independently of their chosen segment count or assigning hotkeys to toggle it.",
+      "root_cause_hypothesis": "The radial symmetry state is stored exclusively as segment counts in DNA (`Paint.radial_sym[3]`), conflating the enabled state with the segment count value. Consequently, disabling symmetry resets or overwrites the count, and no discrete boolean toggle exists in RNA or UI.",
+      "suggested_approach": "Introduce a bitmask flag in DNA (such as in `Paint` symmetry flags) for enabling radial symmetry on X, Y, and Z axes. Expose these toggles via RNA, update the sculpt/paint UI to show checkboxes alongside the count spinners, update sculpt execution code to check both the toggle flag and segment count, and add necessary do_versions logic.",
+      "likely_areas": [
+        "source/blender/makesdna/DNA_brush_types.h",
+        "source/blender/makesrna/intern/rna_sculpt_paint.c",
+        "source/blender/editors/sculpt_paint/sculpt.cc",
+        "source/blender/blenloader/intern/versioning_400.cc (or current active versioning file)",
+        "release/scripts/startup/bl_ui/properties_paint_common.py"
+      ],
+      "prerequisites": [
+        "A working Blender build environment from source (C/C++ and Python)",
+        "Understanding of Blender's DNA/RNA architecture and versioning system",
+        "Familiarity with sculpt and paint symmetry handling in Blender"
+      ],
+      "implementation_steps": [
+        "Define new flag bits in `DNA_brush_types.h` (e.g., `PAINT_RADIAL_SYM_X`, `PAINT_RADIAL_SYM_Y`, `PAINT_RADIAL_SYM_Z`) in `ePaintSymmetryFlags` or a new radial symmetry bitfield in the `Paint` struct.",
+        "Expose RNA boolean properties (e.g., `use_radial_symmetry_x`, `use_radial_symmetry_y`, `use_radial_symmetry_z` or a composite enum/flag `use_radial_symmetry`) on `Paint` / `Sculpt` in `source/blender/makesrna/intern/rna_sculpt_paint.c`.",
+        "Add versioning code in `source/blender/blenloader/intern/versioning_*.cc` to initialize the radial symmetry flags to true for axes where existing files have `radial_sym[i] > 1` (or maintain backward compatibility).",
+        "Update sculpt and paint symmetry iteration logic (e.g., in `sculpt.cc` / `sculpt_intern.hh` where radial symmetry passes are looped) to verify the axis flag is active before iterating beyond 1 repetition.",
+        "Update the Sculpt UI in Python (`properties_paint_common.py` or the symmetry popover in 3D Viewport header) to display toggle checkboxes for X, Y, Z next to their respective segment count inputs, disabling or muting the count input when the toggle is off.",
+        "Test sculpting with radial symmetry enabled, toggled off, and toggled back on, verifying that the configured segment count is preserved and keybindings can be assigned to the new RNA properties."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-10-08T03:54:22.354300+00:00",
+      "processed_at": "2026-10-08T03:54:22.354300+00:00"
     }
   }
 }
