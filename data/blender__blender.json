@@ -1,6 +1,6 @@
 {
   "repo": "blender/blender",
-  "generated_at": "2026-10-08T03:55:43.844273+00:00",
+  "generated_at": "2026-10-10T03:51:21.182025+00:00",
   "issues": {
     "160373": {
       "repo": "blender/blender",
@@ -100,6 +100,107 @@
       "confidence": "high",
       "first_seen": "2026-10-08T03:54:22.354300+00:00",
       "processed_at": "2026-10-08T03:54:22.354300+00:00"
+    },
+    "164257": {
+      "repo": "blender/blender",
+      "number": 164257,
+      "title": "Console: Mouse text selection does not continue through scrollback while dragging",
+      "source_url": "https://projects.blender.org/blender/blender/issues/164257",
+      "labels": [
+        "Meta/Good First Issue",
+        "Module/User Interface",
+        "Severity/Normal",
+        "Status/Confirmed",
+        "Type/Bug"
+      ],
+      "reactions": 0,
+      "created_at": "2026-09-23T07:37:02+02:00",
+      "updated_at": "2026-09-27T16:43:04+02:00",
+      "need_score": 16.0,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue describes a missing UI interaction feature (auto-scrolling during text selection drag) in Blender's Python Console. While the reproduction steps are clear, implementing continuous selection-dragging with auto-scroll requires deep knowledge of Blender's window manager event loop, UI drawing, and text editor/console event handling, making it moderately complex for an outsider.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [
+        "Familiarity with Blender's custom UI event handling and console scrollback mechanism is needed."
+      ],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "In the Blender Python Console editor, dragging the mouse to select text does not auto-scroll the console viewport when the cursor reaches the viewport boundaries, nor does Shift+Click properly extend an active selection across scrollback history.",
+      "root_cause_hypothesis": "The console mouse selection operator (`CONSOLE_OT_select_set` or modal click-drag operator in `source/blender/editors/space_console/console_ops.c`) does not support auto-scrolling when mouse coordinates fall outside the region bounds during drag modal execution, and it calculates selection coordinates relative to visible region lines without adjusting for scroll offset changes or supporting continuous Shift-click range extensions.",
+      "suggested_approach": "Implement auto-scrolling during the mouse drag modal state in the Console editor (similar to text editor / standard UI widgets) using a modal timer or view bounds check, and update the selection endpoint relative to the scrolled content buffer rather than clamped static screen space. Additionally, support Shift-click to extend the selection endpoint while preserving the original anchor.",
+      "likely_areas": [
+        "source/blender/editors/space_console/console_ops.c",
+        "source/blender/editors/space_console/console_intern.h",
+        "source/blender/editors/space_console/console_draw.c",
+        "source/blender/editors/space_console/space_console.cc"
+      ],
+      "prerequisites": [
+        "Ability to build Blender from source (C/C++ environment)",
+        "Familiarity with Blender's Window Manager (WM) modal operator event loop, timer callbacks, and editor region navigation"
+      ],
+      "implementation_steps": [
+        "Locate the mouse selection operator and event handling for `SPACE_CONSOLE` in `source/blender/editors/space_console/console_ops.c`.",
+        "Examine how text selection coordinates are mapped from screen space (region mouse Y/X) to console line buffers and character offsets in `console_draw.c` and `console_ops.c`.",
+        "Add logic in the modal event loop of the selection operator to detect when the mouse pointer is dragged near or beyond the top or bottom edges of the console region.",
+        "Register a timer (`WM_event_add_modal_handler` / `WM_event_add_timer`) when dragging out of bounds to trigger incremental scrolling of `SpaceConsole->scroll` and dynamically refresh the selection end position.",
+        "Ensure `Shift + LEFTMOUSE` click behavior inspects existing selection state to update only the active selection endpoint (`sel_end`) while retaining the selection start (`sel_start`), rather than resetting both.",
+        "Verify edge cases: dragging past the top/bottom boundary stops scrolling when reaching the beginning or end of the history buffer, releasing the mouse cleans up modal timers, and text copying (`ctrl+c`) retains the entire multi-screen selection.",
+        "Test on multiple operating systems (macOS, Linux, Windows) with long multi-page text blocks."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-10-10T03:50:47.683553+00:00",
+      "processed_at": "2026-10-10T03:50:47.683553+00:00"
+    },
+    "136889": {
+      "repo": "blender/blender",
+      "number": 136889,
+      "title": "Scale Cage in ortho view scales other axis unintuitively",
+      "source_url": "https://projects.blender.org/blender/blender/issues/136889",
+      "labels": [
+        "Interest/User Interface",
+        "Meta/Good First Issue",
+        "Module/Modeling",
+        "Severity/Normal",
+        "Status/Confirmed",
+        "Type/Bug"
+      ],
+      "reactions": 0,
+      "created_at": "2025-04-02T15:44:13+02:00",
+      "updated_at": "2026-10-06T00:52:59+02:00",
+      "need_score": 16.0,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue describes an unintuitive scaling behavior specific to the cage scale tool in orthographic views. While steps to reproduce are clear, figuring out the orthographic projection math vs. screen-space interaction for gizmos can be subtle without prior familiarity with the gizmo/transform system.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "When using the Scale Cage tool in an aligned orthographic view, dragging what visually appears to be a side handle unexpectedly scales the object along two axes instead of just the active view axis.",
+      "root_cause_hypothesis": "The 3D cage gizmo distinguishes between corner handles (3 axes), edge handles (2 axes), and face handles (1 axis). In an aligned orthographic view (e.g., Front view), the silhouette handles on the sides correspond to the cage's 3D edges (which scale along both the screen axis and depth axis), while the 1-axis face center handle is positioned directly in the center facing the camera or obscured. Users clicking the side handle expect a 1D scale along the visible screen axis.",
+      "suggested_approach": "Detect when the 3D cage gizmo is used in an aligned orthographic view (or when an edge handle is parallel to the view direction), and either project/constrain edge handle transformations to only affect the orthogonal screen axis (ignoring the depth axis), or adapt the gizmo handle hit-testing/display in orthographic projection so that side interactions behave as 1D face handles.",
+      "likely_areas": [
+        "source/blender/editors/gizmo_library/gizmo_types/cage3d_gizmo.cc",
+        "source/blender/editors/transform/transform_gizmo_cage.cc",
+        "source/blender/editors/transform/transform_convert.cc"
+      ],
+      "prerequisites": [
+        "Ability to build Blender from source",
+        "Basic familiarity with Blender's gizmo architecture and orthographic view transform matrix math"
+      ],
+      "implementation_steps": [
+        "Locate the 3D cage gizmo implementation (typically under `source/blender/editors/gizmo_library/gizmo_types/cage3d_gizmo.cc` or `transform_gizmo_cage.cc`).",
+        "Analyze how cage handles are represented, selected, and mapped to scale transform axes during drag operations (distinguishing face, edge, and corner interactions).",
+        "Inspect the transform handler when dragging edge handles; determine how the view projection matrix or camera orientation can be queried (e.g., checking if the view is orthographic and aligned with a principal axis).",
+        "Implement logic in the cage drag operator / gizmo interaction callback to suppress or lock the depth axis when dragging an edge handle that lies parallel to the view direction in orthographic projection.",
+        "Verify whether gizmo drawing/highlighting in orthographic view needs adjustments to avoid visual confusion over which axis is being influenced.",
+        "Test behavior in Perspective view (verify standard 3-axis/2-axis/1-axis cage scaling is preserved) and in Top, Front, Right orthographic views (verify side handles only scale the expected screen axis)."
+      ],
+      "confidence": "medium",
+      "first_seen": "2026-10-10T03:51:21.181940+00:00",
+      "processed_at": "2026-10-10T03:51:21.181940+00:00"
     }
   }
 }
