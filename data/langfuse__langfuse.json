@@ -1,6 +1,6 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-10-10T03:33:01.940524+00:00",
+  "generated_at": "2026-10-11T03:08:15.226121+00:00",
   "issues": {
     "15280": {
       "repo": "langfuse/langfuse",
@@ -204,39 +204,38 @@
       "reactions": 1,
       "created_at": "2026-09-25T14:52:10Z",
       "updated_at": "2026-09-25T14:52:43Z",
-      "need_score": 4.8,
+      "need_score": 6.8,
       "feasibility": "high",
-      "feasibility_reason": "The issue clearly identifies the problem in `compileTemplateString` using an ASCII-only regex `[\\w.]+` while `extractVariables` supports unicode. The reporter even references a prior pull request and mentions having a fix ready.",
+      "feasibility_reason": "The issue clearly identifies the root cause (compileTemplateString matches keys with [\new.]+ instead of supporting unicode characters) and points out the affected functions.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "under_1h",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Template compilation fails to substitute non-ASCII/Unicode prompt variables (e.g., `{{réponse}}` or `{{名前}}`), leaving them uncompiled when passed to LLM evaluators and experiments.",
-      "root_cause_hypothesis": "`compileTemplateString` uses an ASCII-only regular expression pattern `[\\w.]+` to match variable placeholders, whereas `extractVariables` was previously updated to support Unicode characters, causing a mismatch where non-ASCII variables are recognized during extraction/validation but ignored during template compilation.",
-      "suggested_approach": "Align the regex in `compileTemplateString` (and any related variable replacement helpers) with the Unicode-compatible regex used in `extractVariables`, utilizing the `u` (unicode) RegExp flag and Unicode character classes (such as `[\\p{L}\\p{N}_.]` or similar) to ensure all extracted variables can be compiled.",
+      "problem_summary": "Template variables containing non-ASCII characters (e.g., accented letters or CJK characters like {{réponse}} and {{名前}}) are recognized during extraction via extractVariables, but are ignored during template compilation in compileTemplateString, causing uncompiled placeholders to be sent to models.",
+      "root_cause_hypothesis": "compileTemplateString uses an ASCII-limited regex pattern like /[\\w.]+/ to capture variable names inside delimiters, failing to match unicode identifier characters that extractVariables was already updated to support.",
+      "suggested_approach": "Update the template replacement regex in compileTemplateString to support unicode characters (matching the unicode-aware regex pattern and 'u' flag used by extractVariables), ensuring that all extracted variable names can also be matched and substituted during template compilation.",
       "likely_areas": [
-        "packages/shared/src/utils/template.ts (or wherever `compileTemplateString` is defined)",
-        "packages/shared/src/utils/extractVariables.ts",
-        "ee/packages/evaluators or server evaluator execution modules (`executeLlmEvaluator`)",
-        "packages/server/src/services/experiments or prompt utilities (`replaceVariablesInPrompt`)"
+        "packages/shared/src/utils/template.ts or similar template string utility file defining compileTemplateString and extractVariables",
+        "services/evaluator / executeLlmEvaluator execution pathways",
+        "packages/experiments / replaceVariablesInPrompt utility pathways",
+        "test files covering compileTemplateString and prompt variable replacement"
       ],
       "prerequisites": [
-        "Locate the implementation of `extractVariables` (specifically changes from PR #12173) to see the exact regex pattern used for Unicode variable matching.",
-        "Verify Node.js/JS target RegExp compatibility with Unicode property escapes (`\\p{L}`, `u` flag)."
+        "Inspect the implementation and regex used in extractVariables (introduced in PR #12173) to identify the exact unicode pattern and flags adopted for variable matching.",
+        "Inspect compileTemplateString to verify how keys are extracted, trimmed, and replaced."
       ],
       "implementation_steps": [
-        "Find the definition of `compileTemplateString` in the codebase.",
-        "Inspect `extractVariables` to identify the regex syntax and character sets it supports for variable names.",
-        "Update the placeholder matching regular expression in `compileTemplateString` from `[\\w.]+` to support Unicode identifiers matching `extractVariables`, enabling the `u` flag if using Unicode property escapes (`\\p{L}`, etc.).",
-        "Check callsites and related prompt variable substitution functions, specifically `executeLlmEvaluator` and `replaceVariablesInPrompt`, ensuring consistent replacement behavior.",
-        "Add unit tests for `compileTemplateString` covering various non-ASCII scripts (e.g., accented Latin characters like `réponse`, CJK characters like `名前`).",
-        "Add integration or regression tests for prompt template resolution in evaluator execution and experiment prompt replacement."
+        "Locate compileTemplateString and inspect the regular expression used to find placeholders (e.g., /\\{\\{([\\w.]+)\\}\\}/g).",
+        "Update the regular expression to match unicode variable names, aligning with extractVariables by using Unicode property escapes (such as /\\p{L}|\\p{N}/u) or the corresponding character class.",
+        "Check any downstream handlers such as executeLlmEvaluator and replaceVariablesInPrompt to ensure there are no secondary regexes filtering out non-ASCII keys.",
+        "Add unit tests in the template utility test suite verifying that variables with accents (e.g., {{réponse}}) and CJK characters (e.g., {{名前}}) compile properly when mapped values are supplied.",
+        "Run evaluator and experiment test suites to verify that standard ASCII template compilation remains backwards-compatible and non-regressive."
       ],
       "confidence": "high",
       "first_seen": "2026-09-27T02:44:05.167496+00:00",
-      "processed_at": "2026-09-27T02:44:05.167496+00:00"
+      "processed_at": "2026-10-11T03:08:15.226051+00:00"
     },
     "18053": {
       "repo": "langfuse/langfuse",
