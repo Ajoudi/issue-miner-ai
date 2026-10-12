@@ -1,6 +1,6 @@
 {
   "repo": "duckdb/duckdb",
-  "generated_at": "2026-10-11T03:11:07.052133+00:00",
+  "generated_at": "2026-10-12T03:30:48.821374+00:00",
   "issues": {
     "13069": {
       "repo": "duckdb/duckdb",
@@ -377,37 +377,36 @@
       "updated_at": "2026-09-19T07:54:22Z",
       "need_score": 18.4,
       "feasibility": "medium",
-      "feasibility_reason": "The issue describes a clear mathematical/numerical edge case where standard deviation functions in DuckDB throw an out-of-range error when encountering Infinity, -Infinity, or NaN values in floating-point columns. While reproducible and specific, fixing it requires understanding DuckDB's aggregate function implementations for floating-point statistics and deciding how IEEE 754 special values should propagate or be filtered in standard deviation calculations.",
+      "feasibility_reason": "The issue clearly identifies that aggregate functions like STDDEV_POP throw an out of range error when encountering IEEE 754 special values (inf, -inf, nan). Fixing this requires updating the standard deviation implementation to properly handle or ignore non-finite floating-point values according to SQL standard semantics, which involves navigating DuckDB's aggregation codebase.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "DuckDB's STDDEV and VARIANCE aggregate functions throw an 'Out of Range Error' instead of returning NaN or Inf when calculating aggregate statistics over columns containing NaN, Inf, or -Inf.",
-      "root_cause_hypothesis": "The finalize or update stage of STDDEV and VARIANCE aggregates explicitly validates output or intermediate float/double values using Value::DoubleIsValid (or std::isfinite) and throws an OutOfRangeException if the result is not finite, a safeguard introduced historically before DuckDB had robust NaN/Inf support.",
-      "suggested_approach": "Remove or adjust the non-finite value checks in the STDDEV/VARIANCE aggregate implementations (reverting the defensive OutOfRange check introduced in commit 2e03516e04ae94c33bff66201cb4290c1dc86662) so that standard IEEE-754 NaN and Inf semantics are preserved and returned.",
+      "problem_summary": "STDDEV, STDDEV_POP, and STDDEV_SAMP throw an Out of Range Error when calculating aggregates over floating point columns containing NaN, Inf, or -Inf.",
+      "root_cause_hypothesis": "The aggregate calculation or finalize step for STDDEV and VARIANCE functions contains an explicit validity or finite check (such as `!Value::DoubleIsValid(result)` or `!std::isfinite(...)`) that throws an OutOfRangeException instead of returning standard IEEE-754 floating-point results (such as NaN).",
+      "suggested_approach": "Locate the finalize / execution logic for STDDEV and VARIANCE aggregate functions, remove or adjust the check that throws `OutOfRangeException` on non-finite values (allowing NaN/inf to pass through as standard IEEE-754 double/float values), and add regression tests for inf, -inf, and nan inputs.",
       "likely_areas": [
-        "extension/core_functions/aggregate/distributive/stddev.cpp",
         "src/core_functions/aggregate/distributive/stddev.cpp",
+        "src/core_functions/aggregate/distributive/variance.cpp",
         "test/sql/aggregate/aggregates/test_stddev.test"
       ],
       "prerequisites": [
-        "Working C++ build environment for DuckDB (CMake, Ninja/Make, modern C++ compiler).",
-        "Familiarity with DuckDB's aggregate function infrastructure (State, Operation, Finalize)."
+        "DuckDB development environment set up with CMake and C++ compiler",
+        "Sqllogictest runner operational"
       ],
       "implementation_steps": [
-        "Locate the implementation of STDDEV and VARIANCE aggregates (typically in 'extension/core_functions/aggregate/distributive/stddev.cpp' or under 'src/core_functions/aggregate/distributive/').",
-        "Inspect the `Finalize` and `Operation` functions for `StddevOperation`, `VarianceOperation`, and related structs.",
-        "Identify where `Value::DoubleIsValid(...)` or `!std::isfinite(...)` is called to throw `OutOfRangeException(\"... is out of range!\")`.",
-        "Remove or modify the check to allow returning NaN/Inf directly without throwing an exception, ensuring consistency across float and double types.",
-        "Check for any related aggregate functions (such as COVAR_POP, COVAR_SAMP, CORR) to see if similar unnecessary range checks exist and address them if appropriate.",
-        "Run existing aggregate regression tests to ensure no regressions in standard valid inputs.",
-        "Add SQLLogicTest test cases covering `STDDEV`, `STDDEV_POP`, `STDDEV_SAMP`, `VARIANCE`, etc., with combinations of NaN, +Infinity, -Infinity, and finite values."
+        "Search for the error message 'is out of range!' in the codebase, particularly in aggregate functions (`src/core_functions/aggregate/distributive/` or `src/function/aggregate/`).",
+        "Inspect the `Finalize` methods for `STDDEV`, `STDDEV_POP`, `STDDEV_SAMP`, `VARIANCE`, `VAR_POP`, and `VAR_SAMP`.",
+        "Remove or modify the `Value::DoubleIsValid` / `Value::FloatIsValid` / `std::isfinite` checks throwing `OutOfRangeException` during finalization, ensuring IEEE-754 semantics (returning NaN or Inf) are preserved.",
+        "Verify whether intermediate states or division-by-zero checks (e.g., when count <= 1) are still properly handling edge cases and returning NULL or 0 as expected.",
+        "Build DuckDB and run existing aggregate unit and sqllogictests to ensure no regressions.",
+        "Add new sqllogictest coverage in `test/sql/aggregate/aggregates/` verifying STDDEV, STDDEV_POP, STDDEV_SAMP, and VARIANCE functions with float/double inputs containing 'nan', 'inf', '-inf', and combinations with regular numbers."
       ],
       "confidence": "high",
       "first_seen": "2026-09-28T02:49:10.187153+00:00",
-      "processed_at": "2026-09-28T02:49:10.187153+00:00"
+      "processed_at": "2026-10-12T03:30:48.821308+00:00"
     },
     "15173": {
       "repo": "duckdb/duckdb",
