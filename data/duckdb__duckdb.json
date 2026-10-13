@@ -1,6 +1,6 @@
 {
   "repo": "duckdb/duckdb",
-  "generated_at": "2026-10-12T03:30:48.821374+00:00",
+  "generated_at": "2026-10-13T04:46:13.109687+00:00",
   "issues": {
     "13069": {
       "repo": "duckdb/duckdb",
@@ -370,43 +370,45 @@
       "title": "STDDEV function not support inf, -inf and Nan",
       "source_url": "https://github.com/duckdb/duckdb/issues/15520",
       "labels": [
-        "reproduced"
+        "reproduced",
+        "fixed on nightly"
       ],
       "reactions": 3,
       "created_at": "2025-01-02T12:06:03Z",
-      "updated_at": "2026-09-19T07:54:22Z",
+      "updated_at": "2026-10-12T17:04:20Z",
       "need_score": 18.4,
-      "feasibility": "medium",
-      "feasibility_reason": "The issue clearly identifies that aggregate functions like STDDEV_POP throw an out of range error when encountering IEEE 754 special values (inf, -inf, nan). Fixing this requires updating the standard deviation implementation to properly handle or ignore non-finite floating-point values according to SQL standard semantics, which involves navigating DuckDB's aggregation codebase.",
+      "feasibility": "high",
+      "feasibility_reason": "The issue is already labeled as reproduced and fixed on nightly. It describes a clear out-of-range error in aggregate functions (STDDEV, STDDEV_POP, STDDEV_SAMP) when encountering floating-point special values like inf, -inf, and NaN. Standardizing handling of IEEE 754 special values in aggregate functions is well-defined and straightforward for an AI assistant.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "STDDEV, STDDEV_POP, and STDDEV_SAMP throw an Out of Range Error when calculating aggregates over floating point columns containing NaN, Inf, or -Inf.",
-      "root_cause_hypothesis": "The aggregate calculation or finalize step for STDDEV and VARIANCE functions contains an explicit validity or finite check (such as `!Value::DoubleIsValid(result)` or `!std::isfinite(...)`) that throws an OutOfRangeException instead of returning standard IEEE-754 floating-point results (such as NaN).",
-      "suggested_approach": "Locate the finalize / execution logic for STDDEV and VARIANCE aggregate functions, remove or adjust the check that throws `OutOfRangeException` on non-finite values (allowing NaN/inf to pass through as standard IEEE-754 double/float values), and add regression tests for inf, -inf, and nan inputs.",
+      "problem_summary": "Aggregates such as STDDEV, STDDEV_POP, STDDEV_SAMP, and related variance functions raise an 'Out of Range Error' when aggregating over floating-point columns containing NaN, Infinity, or -Infinity values instead of producing IEEE floating-point NaN or Inf.",
+      "root_cause_hypothesis": "The finalize or calculation step in standard deviation / variance aggregate functions performs an explicit check (e.g., using `Value::DoubleIsValid` or `std::isfinite`) on the computed variance/standard deviation and throws an Out of Range exception if the result is NaN or infinite, which was originally added before DuckDB supported standard IEEE NaN/Inf propagation.",
+      "suggested_approach": "Remove or adjust the strict validity checks in the finalize/operation methods of standard deviation and variance aggregates so that IEEE floating-point values (NaN and Infinity) propagate as valid double/float results instead of throwing an out of range error.",
       "likely_areas": [
-        "src/core_functions/aggregate/distributive/stddev.cpp",
-        "src/core_functions/aggregate/distributive/variance.cpp",
+        "src/function/aggregate/algebraic/stddev.cpp",
+        "src/function/aggregate/distributive/stddev.cpp",
+        "src/include/duckdb/function/aggregate/algebraic_functions.hpp",
         "test/sql/aggregate/aggregates/test_stddev.test"
       ],
       "prerequisites": [
-        "DuckDB development environment set up with CMake and C++ compiler",
-        "Sqllogictest runner operational"
+        "Check git history for commit 2e03516e04ae94c33bff66201cb4290c1dc86662 to understand where the out-of-range checks were added.",
+        "Verify how other algebraic/distributive aggregates (such as AVG, SUM, COVAR) handle floating-point NaN and Infinity values in DuckDB."
       ],
       "implementation_steps": [
-        "Search for the error message 'is out of range!' in the codebase, particularly in aggregate functions (`src/core_functions/aggregate/distributive/` or `src/function/aggregate/`).",
-        "Inspect the `Finalize` methods for `STDDEV`, `STDDEV_POP`, `STDDEV_SAMP`, `VARIANCE`, `VAR_POP`, and `VAR_SAMP`.",
-        "Remove or modify the `Value::DoubleIsValid` / `Value::FloatIsValid` / `std::isfinite` checks throwing `OutOfRangeException` during finalization, ensuring IEEE-754 semantics (returning NaN or Inf) are preserved.",
-        "Verify whether intermediate states or division-by-zero checks (e.g., when count <= 1) are still properly handling edge cases and returning NULL or 0 as expected.",
-        "Build DuckDB and run existing aggregate unit and sqllogictests to ensure no regressions.",
-        "Add new sqllogictest coverage in `test/sql/aggregate/aggregates/` verifying STDDEV, STDDEV_POP, STDDEV_SAMP, and VARIANCE functions with float/double inputs containing 'nan', 'inf', '-inf', and combinations with regular numbers."
+        "Locate the standard deviation and variance aggregate function definitions in `src/function/aggregate/algebraic/stddev.cpp` (or corresponding directory).",
+        "Identify the `Finalize` logic where `Value::DoubleIsValid` or `std::isfinite` checks throw `ExceptionType::OUT_OF_RANGE`.",
+        "Remove the explicit error throw on non-finite/NaN results, allowing `nan` or `inf` to be returned in the target result vector (consistent with IEEE-754 semantics across DuckDB).",
+        "Verify handling across both float and double variations, including `STDDEV`, `STDDEV_POP`, `STDDEV_SAMP`, `VAR_POP`, and `VAR_SAMP`.",
+        "Add regression tests in SQLLogicTest (e.g., `test/sql/aggregate/aggregates/test_stddev.test`) verifying that STDDEV and VAR operations on datasets containing 'nan', 'inf', and '-inf' evaluate to NaN without raising an exception.",
+        "Run the aggregate test suite via `make test` or `build/unittest` to ensure no existing tests are broken."
       ],
       "confidence": "high",
       "first_seen": "2026-09-28T02:49:10.187153+00:00",
-      "processed_at": "2026-10-12T03:30:48.821308+00:00"
+      "processed_at": "2026-10-13T04:46:13.109627+00:00"
     },
     "15173": {
       "repo": "duckdb/duckdb",
