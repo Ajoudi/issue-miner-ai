@@ -1,6 +1,6 @@
 {
   "repo": "duckdb/duckdb",
-  "generated_at": "2026-10-13T04:46:13.109687+00:00",
+  "generated_at": "2026-10-14T02:54:47.129976+00:00",
   "issues": {
     "13069": {
       "repo": "duckdb/duckdb",
@@ -408,7 +408,9 @@
       ],
       "confidence": "high",
       "first_seen": "2026-09-28T02:49:10.187153+00:00",
-      "processed_at": "2026-10-13T04:46:13.109627+00:00"
+      "processed_at": "2026-10-13T04:46:13.109627+00:00",
+      "resolved": true,
+      "resolved_at": "2026-10-14T02:54:16.935068+00:00"
     },
     "15173": {
       "repo": "duckdb/duckdb",
@@ -454,7 +456,9 @@
       ],
       "confidence": "high",
       "first_seen": "2026-10-08T03:48:07.414952+00:00",
-      "processed_at": "2026-10-08T03:48:07.414952+00:00"
+      "processed_at": "2026-10-08T03:48:07.414952+00:00",
+      "resolved": true,
+      "resolved_at": "2026-10-14T02:54:17.198291+00:00"
     }
   }
 }
