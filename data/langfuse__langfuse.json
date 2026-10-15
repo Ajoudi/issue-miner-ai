@@ -1,6 +1,6 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-10-14T02:52:21.032789+00:00",
+  "generated_at": "2026-10-15T02:31:30.678893+00:00",
   "issues": {
     "15280": {
       "repo": "langfuse/langfuse",
@@ -332,6 +332,53 @@
       "confidence": "medium",
       "first_seen": "2026-10-12T03:29:01.920479+00:00",
       "processed_at": "2026-10-12T03:29:01.920479+00:00"
+    },
+    "18360": {
+      "repo": "langfuse/langfuse",
+      "number": 18360,
+      "title": "Add DemonRoute as a documented LLM-connection provider example",
+      "source_url": "https://github.com/langfuse/langfuse/issues/18360",
+      "labels": [
+        "integration-openai",
+        "feat-llm-connections",
+        "documentation",
+        "feature"
+      ],
+      "reactions": 1,
+      "created_at": "2026-10-06T17:55:17Z",
+      "updated_at": "2026-10-06T17:55:54Z",
+      "need_score": 5.8,
+      "feasibility": "high",
+      "feasibility_reason": "The issue is a straightforward documentation update request to add a new OpenAI-compatible LLM provider example (base URL, key, model name) to existing documentation, requiring no code logic changes.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "under_1h",
+      "worth_solving": false,
+      "flagged_injection": false,
+      "problem_summary": "The request asks to include DemonRoute as a documented example of an OpenAI-compatible gateway in the LLM connection documentation.",
+      "root_cause_hypothesis": "Current LLM connection documentation covers OpenAI-compatible endpoints with custom base URLs but does not list DemonRoute as an example provider alongside existing options.",
+      "suggested_approach": "Verify project policies regarding vendor/provider listings in documentation, locate the relevant OpenAI-compatible connections guide, and add a standardized configuration example displaying DemonRoute's base URL, API key format, and sample model identifiers.",
+      "likely_areas": [
+        "docs/llm-connections",
+        "docs/integrations",
+        "docs/evals",
+        "docs/playground"
+      ],
+      "prerequisites": [
+        "Check repository guidelines and maintainer consensus regarding listing third-party commercial API providers in documentation.",
+        "Verify DemonRoute's OpenAI-compatible API endpoint format and standard model names."
+      ],
+      "implementation_steps": [
+        "Locate the documentation file(s) that explain configuring custom OpenAI-compatible endpoints or third-party gateways for LLM connections and evals.",
+        "Examine existing provider examples to follow the same format, markdown style, and disclaimer conventions.",
+        "Add a configuration snippet for DemonRoute specifying the base URL (`https://api.demonroute.com/v1`), API key setup instructions, and an example model identifier.",
+        "Build and preview the documentation locally (e.g., via Docusaurus, MkDocs, or Mintlify depending on repository setup) to ensure formatting and links render correctly.",
+        "Open a pull request with the documentation changes and request maintainer feedback regarding provider inclusion."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-10-15T02:31:30.678823+00:00",
+      "processed_at": "2026-10-15T02:31:30.678823+00:00"
     }
   }
 }
