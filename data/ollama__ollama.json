@@ -1,6 +1,6 @@
 {
   "repo": "ollama/ollama",
-  "generated_at": "2026-10-18T02:16:58.574436+00:00",
+  "generated_at": "2026-10-19T02:34:27.781208+00:00",
   "issues": {
     "14233": {
       "repo": "ollama/ollama",
@@ -150,36 +150,36 @@
       "created_at": "2023-11-07T19:47:32Z",
       "updated_at": "2026-04-25T07:17:45Z",
       "need_score": 20.4,
-      "feasibility": "medium",
-      "feasibility_reason": "The issue describes a transient network download failure resulting in an unexpected EOF where the download gets stuck instead of properly retrying or recovering automatically, requiring a manual stop and resume. While the symptom is clear and points to download.go, network retry/resumption logic in distributed downloads can be tricky to get right without reproducing the exact network interruption.",
+      "feasibility": "high",
+      "feasibility_reason": "The issue describes a well-defined download retry or resumption bug where an unexpected EOF can cause a download to get stuck, but a clear workaround exists and the error logs pinpoint the exact file and line (download.go:160).",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Model downloads via `ollama pull` fail or hang with `unexpected EOF` or `max retries exceeded` when downloading layer parts over unstable network connections.",
-      "root_cause_hypothesis": "The concurrent part downloader in `download.go` does not cleanly handle mid-stream connection drops or truncated HTTP responses (unexpected EOF). When an EOF occurs during a part's HTTP body read, the retry mechanism may not reset the stream or offset appropriately, or worker goroutines may become stuck waiting on parts that fail without completing or signaling progress accurately.",
-      "suggested_approach": "Harden chunk/part download error handling and retry logic in `server/download.go`. Specifically, treat `io.ErrUnexpectedEOF` as a transient retryable error, ensure HTTP request bodies and responses are properly closed before retrying, add exponential backoff for retries, and ensure the worker synchronization pool properly handles retry and cancellation states without deadlocking.",
+      "problem_summary": "During 'ollama pull' or 'ollama run', model layer chunk downloads fail with 'unexpected EOF', leading to stalled downloads or 'max retries exceeded' errors.",
+      "root_cause_hypothesis": "The chunked/multipart blob downloader encounters truncated HTTP responses or closed connections mid-transfer, producing io.ErrUnexpectedEOF. Either the retry mechanism does not properly reset or resume from the byte offset for the affected part, reuses broken HTTP connections, or lacks adequate backoff and error recovery when network hiccups occur.",
+      "suggested_approach": "Inspect and harden the multipart download logic in `server/download.go`. Ensure each part download resets file offsets or reads cleanly on retry, uses exponential backoff, verifies that the HTTP transport does not keep alive stale connections after an unexpected EOF, and correctly propagates chunk completion or failure states so worker pools do not stall indefinitely.",
       "likely_areas": [
         "server/download.go",
         "server/images.go"
       ],
       "prerequisites": [
-        "Working Go development environment capable of building Ollama",
-        "Ability to mock HTTP range request downloads and simulate network drops (e.g. truncated responses, unexpected EOF)"
+        "Go development environment matching the repository version",
+        "Understanding of Go's net/http client, io.Reader/io.Copy, and Ollama's chunked download implementation"
       ],
       "implementation_steps": [
-        "Locate the layer/part download logic in `server/download.go` where `io.Copy`, `io.ReadFull`, or custom chunk readers read from the HTTP response body.",
-        "Inspect the retry loop around part downloads to verify how `io.ErrUnexpectedEOF` and other network read errors are handled, ensuring the response body is drained and closed before initiating a retry.",
-        "Verify that retries for a part either resume from the byte offset already downloaded (using HTTP Range headers if supported) or completely re-request the specific part slice from the beginning.",
-        "Add or improve backoff and jitter between retry attempts to handle transient server or CDN rate-limiting and connection drop spikes.",
-        "Ensure error propagation and goroutine synchronization in the worker pool do not cause the pull progress to hang when an individual part download encounters repeated failures.",
-        "Write unit and integration tests simulating mid-stream truncated downloads to confirm that failed parts retry successfully and downloads complete without hanging."
+        "Locate the chunk/part download routine in `server/download.go` around log statement `part %d attempt %d failed: %v, retrying`.",
+        "Examine the retry logic for parts: verify that the destination file write pointer/offset and read stream are properly reset to the part's initial range offset before retrying.",
+        "Ensure transient network errors like `io.ErrUnexpectedEOF`, `io.EOF`, and TLS connection resets trigger appropriate exponential backoff and request retries rather than immediately burning through attempt counts or hanging.",
+        "Verify the HTTP client configuration: ensure response bodies are properly closed and discarded on error so idle connections in the transport connection pool are invalidated if corrupted.",
+        "Check worker pool synchronization (e.g., errgroup, channels, or sync.WaitGroup) to ensure a failed or retried part does not deadlock remaining chunk workers.",
+        "Add or update unit and integration tests simulating interrupted HTTP streams (partial chunk transfer followed by EOF) to verify resilient resumption and completion."
       ],
       "confidence": "high",
       "first_seen": "2026-10-04T03:33:31.567002+00:00",
-      "processed_at": "2026-10-04T03:33:31.567002+00:00"
+      "processed_at": "2026-10-19T02:34:27.781116+00:00"
     }
   }
 }

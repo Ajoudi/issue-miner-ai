@@ -1,6 +1,6 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-10-18T02:18:54.938368+00:00",
+  "generated_at": "2026-10-19T02:36:30.922502+00:00",
   "issues": {
     "15280": {
       "repo": "langfuse/langfuse",
@@ -376,6 +376,54 @@
       "confidence": "high",
       "first_seen": "2026-10-15T02:31:30.678823+00:00",
       "processed_at": "2026-10-15T02:31:30.678823+00:00"
+    },
+    "18995": {
+      "repo": "langfuse/langfuse",
+      "number": 18995,
+      "title": "bug: Codex tracing plugin Stop hook crashes with V8 heap OOM on long sessions (full history copied into every generation)",
+      "source_url": "https://github.com/langfuse/langfuse/issues/18995",
+      "labels": [
+        "bug",
+        "performance",
+        "feat-tracing"
+      ],
+      "reactions": 1,
+      "created_at": "2026-10-18T11:51:28Z",
+      "updated_at": "2026-10-18T11:52:09Z",
+      "need_score": 7.8,
+      "feasibility": "high",
+      "feasibility_reason": "The issue clearly identifies the problematic code pattern where historyPrefix accumulates messages quadratically or linearly with session size, leading to V8 heap OOM. The description points directly to conversion logic and generationInput, making it straightforward to refactor the data handling to avoid full copies.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "The Codex tracing plugin's Stop hook crashes with a V8 heap out-of-memory (SIGABRT) on long sessions because full conversation history is duplicated into the input payload of every generation across all pending turns.",
+      "root_cause_hypothesis": "`convertRollout` builds each generation's input using `historyPrefix`, duplicating every previous turn's message and tool output into every generation span. For sessions with many turns and steps, memory consumption scales quadratically (steps × session size × pending turns), exhausting the Node.js V8 heap and aborting execution before turns can be marked as uploaded.",
+      "suggested_approach": "Bound the history included in each generation's input by introducing a configurable character or message budget. Retain the most recent preceding messages up to the threshold, insert an omission placeholder for older truncated messages, and optionally process/upload turns incrementally to avoid accumulating multiple pending turns in memory at once.",
+      "likely_areas": [
+        "plugins/tracing",
+        "plugins/tracing/src/convert.ts",
+        "plugins/tracing/src/index.ts",
+        "plugins/tracing/src/history.ts"
+      ],
+      "prerequisites": [
+        "Synthetic or fixture long rollout session JSONL file (e.g., >30 MB with large tool output payloads) to reproduce high heap usage.",
+        "Node.js environment with `--max-old-space-size` restrictions enabled for memory profiling and testing."
+      ],
+      "implementation_steps": [
+        "Inspect `plugins/tracing` to locate `convertRollout`, `turnHistoryMessages`, and `generationInput`.",
+        "Define a configurable history budget (e.g., via `LANGFUSE_CODEX_MAX_HISTORY_CHARS` or a default such as 200,000 characters).",
+        "Implement a helper function (`boundedHistory` or equivalent) that walks backwards through `historyPrefix`, accumulates messages until the character budget is reached, and prepends a descriptive placeholder for omitted earlier messages.",
+        "Update `generationInput` to use the bounded history rather than copying the full unbounded `historyPrefix`.",
+        "Evaluate whether `historyPrefix` caching/memoization or lightweight reference passing can prevent redundant allocations across generations within the same turn.",
+        "Ensure error handling or incremental sidecar marking is in place so that uploading turns sequentially marks progress and prevents a cascading backlog failure if an error occurs.",
+        "Add unit and integration tests verifying truncation behavior, placeholder insertion, environment variable overrides, and memory stability on large synthetic transcripts."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-10-19T02:36:30.922434+00:00",
+      "processed_at": "2026-10-19T02:36:30.922434+00:00"
     }
   }
 }
