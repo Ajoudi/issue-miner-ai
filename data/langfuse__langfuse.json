@@ -1,6 +1,6 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-10-19T02:36:30.922502+00:00",
+  "generated_at": "2026-10-20T02:50:48.949930+00:00",
   "issues": {
     "15280": {
       "repo": "langfuse/langfuse",
@@ -249,40 +249,43 @@
       ],
       "reactions": 2,
       "created_at": "2026-09-29T19:26:11Z",
-      "updated_at": "2026-09-30T03:32:34Z",
+      "updated_at": "2026-10-19T03:01:34Z",
       "need_score": 15.6,
-      "feasibility": "medium",
-      "feasibility_reason": "The issue is clear about replacing the full-file JSONL load with a streaming or chunked parser to bound memory usage, while maintaining rollout-order turn numbers and reliable upload retries. However, without inspecting the repository codebase to check the exact architecture of the Stop hook and streaming JSONL parsers available, it requires careful implementation.",
+      "feasibility": "high",
+      "feasibility_reason": "The issue provides a clear performance and memory consumption problem (loading entire large JSONL rollout files into memory) in a specific plugin hook, along with explicit requirements for streaming or chunked parsing, maintaining turn numbers, and handling errors.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "The Codex observability Stop hook buffers entire JSONL rollout files in memory before parsing, causing Node heap exhaustion and uncontrolled aborts on large rollouts.",
-      "root_cause_hypothesis": "The Stop hook implementation reads the entire rollout file into memory (e.g., using `fs.readFile` or equivalent) before splitting and JSON-parsing lines into turn records, which causes excessive memory consumption and V8 heap limits to be exceeded on large session logs.",
-      "suggested_approach": "Refactor rollout processing into a streaming pipeline (e.g., Node.js readline or stream/split2) that processes JSONL records line-by-line with bounded buffer sizes. Track 1-based rollout turn sequence numbers incrementally during streaming, export turns in batches or sequentially, record upload state/checkpoints only after export confirmations, and enforce a maximum byte limit per JSONL record.",
+      "problem_summary": "The Codex observability Stop hook loads entire JSONL rollout files into memory at once, causing Node.js heap exhaustion (OOM) on large sessions, and lacks streaming parsing, record-size limits, and confirmation-gated upload state tracking.",
+      "root_cause_hypothesis": "The Stop hook uses whole-file reads (e.g., fs.readFile) to load and parse JSONL rollouts prior to turn extraction and export. In long sessions, the raw rollout size combined with duplicated context and JSON object allocations exceeds the Node.js memory limit.",
+      "suggested_approach": "Replace whole-file reads with a streaming line-by-line parser (such as Node.js readline or stream pipelines) with an enforced maximum record size. Maintain sequential rollout-order turn indexing to keep trace IDs deterministic, export turns incrementally or in bounded batches, and update turn upload checkpointing only after the exporter successfully confirms the export.",
       "likely_areas": [
         "plugins/codex-observability/src/hooks/stop.ts",
         "plugins/codex-observability/src/rollout/parser.ts",
-        "plugins/codex-observability/src/exporter/turn-exporter.ts",
-        "plugins/codex-observability/src/state/upload-state.ts"
+        "plugins/codex-observability/src/rollout/reader.ts",
+        "plugins/codex-observability/src/export/exporter.ts",
+        "plugins/codex-observability/src/state/checkpoint.ts"
       ],
       "prerequisites": [
-        "Reproduction environment with a large JSONL rollout sample (>37 MB) or synthetic test generator.",
-        "Understanding of the existing rollout turn ordering, trace ID generation scheme, and upload state/marker tracking mechanism."
+        "Inspect the existing Stop hook implementation and how rollouts are currently read, parsed, and passed to the exporter.",
+        "Examine PR #107 and PR #112 to understand existing generation input bounds and state tracking structures.",
+        "Verify how turn numbers and trace IDs are derived from rollout events."
       ],
       "implementation_steps": [
-        "Replace full-file buffered read calls in the Stop hook with a stream-based line reader (using `fs.createReadStream` paired with `readline` or a streaming line parser).",
-        "Add a maximum line length / record byte limit check on the stream to abort or emit a recoverable error if an individual JSONL line exceeds the safe threshold.",
-        "Maintain an incremental turn counter while streaming each record to ensure deterministic rollout-order turn numbers and trace IDs match the previous whole-file implementation.",
-        "Implement or adapt the export workflow to process turns sequentially or in bounded chunks under memory pressure, awaiting remote export confirmation before recording the turn as uploaded.",
-        "Update upload state persistence/checkpointing logic so that incomplete or failed runs leave unconfirmed turns unmarked, allowing safe retries on subsequent runs.",
-        "Add unit and integration tests verifying streaming behavior with large files, handling of oversized single records, trace ID determinism, and retry handling after simulated export failures."
+        "Define a configurable maximum allowed byte limit for single JSONL records to guard against runaway lines and reject or handle oversized records with an explicit error.",
+        "Refactor the rollout reader in the Stop hook from a whole-file read (fs.readFile) to a stream-based line reader (e.g., fs.createReadStream with readline or a stream pipeline).",
+        "Maintain an incremental counter during streaming to preserve deterministic 1-based (or 0-based) rollout-order turn numbering for trace ID generation.",
+        "Process and dispatch turn exports in bounded batches or stream sequences rather than accumulating all turns in an in-memory array before uploading.",
+        "Ensure upload state or checkpoint markers for each turn are recorded only after the exporter successfully confirms the export response, allowing interrupted runs to safely resume or retry unconfirmed turns.",
+        "Add error handling to ensure any stream failure, oversized record, or network error emits a controlled error log and exits gracefully without silent turn dropping.",
+        "Write unit and integration tests with synthetic large JSONL rollouts (streaming verification) and oversized single lines to ensure bounded memory usage and proper error reporting."
       ],
       "confidence": "high",
       "first_seen": "2026-09-30T03:11:51.667805+00:00",
-      "processed_at": "2026-10-17T02:18:12.761857+00:00"
+      "processed_at": "2026-10-20T02:50:05.283343+00:00"
     },
     "18581": {
       "repo": "langfuse/langfuse",
@@ -389,41 +392,40 @@
       ],
       "reactions": 1,
       "created_at": "2026-10-18T11:51:28Z",
-      "updated_at": "2026-10-18T11:52:09Z",
-      "need_score": 7.8,
+      "updated_at": "2026-10-19T14:45:27Z",
+      "need_score": 12.8,
       "feasibility": "high",
-      "feasibility_reason": "The issue clearly identifies the problematic code pattern where historyPrefix accumulates messages quadratically or linearly with session size, leading to V8 heap OOM. The description points directly to conversion logic and generationInput, making it straightforward to refactor the data handling to avoid full copies.",
+      "feasibility_reason": "The issue clearly identifies the buggy function and file path (generationInput and convertRollout in the Codex tracing plugin) and explains the exact cause (concatenating historyPrefix repeatedly per step leading to quadratic memory growth and V8 heap OOM). A developer can easily refactor the tracing input construction to avoid duplicating the entire history array on every generation/turn.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
-      "estimated_effort": "half_day",
+      "estimated_effort": "under_1h",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "The Codex tracing plugin's Stop hook crashes with a V8 heap out-of-memory (SIGABRT) on long sessions because full conversation history is duplicated into the input payload of every generation across all pending turns.",
-      "root_cause_hypothesis": "`convertRollout` builds each generation's input using `historyPrefix`, duplicating every previous turn's message and tool output into every generation span. For sessions with many turns and steps, memory consumption scales quadratically (steps × session size × pending turns), exhausting the Node.js V8 heap and aborting execution before turns can be marked as uploaded.",
-      "suggested_approach": "Bound the history included in each generation's input by introducing a configurable character or message budget. Retain the most recent preceding messages up to the threshold, insert an omission placeholder for older truncated messages, and optionally process/upload turns incrementally to avoid accumulating multiple pending turns in memory at once.",
+      "problem_summary": "The Codex tracing plugin's Stop hook crashes with a V8 JavaScript heap out-of-memory error during long sessions because each generation's input copies the entire cumulative session history, leading to O(steps × session size) memory usage and preventing traces from ever uploading.",
+      "root_cause_hypothesis": "In `convertRollout`, `historyPrefixes` collects all preceding messages and tool outputs for every turn. When building generation spans in `generationInput`, the entire `historyPrefix` is duplicated into `messages` for every single model step. In large rollouts with multiple pending turns and extensive tool outputs, keeping many copies of the full history in memory concurrently exhausts Node's V8 heap.",
+      "suggested_approach": "Introduce a bounded history strategy in `generationInput` that truncates older messages once a character or message budget is exceeded (inserting a summary marker for omitted messages) and make the budget configurable via an environment variable. Additionally, optimize rollout processing to release or stream generation inputs rather than retaining all full histories in memory simultaneously.",
       "likely_areas": [
-        "plugins/tracing",
         "plugins/tracing/src/convert.ts",
+        "plugins/tracing/src/rollout.ts",
         "plugins/tracing/src/index.ts",
-        "plugins/tracing/src/history.ts"
+        "plugins/tracing/src/generation.ts"
       ],
       "prerequisites": [
-        "Synthetic or fixture long rollout session JSONL file (e.g., >30 MB with large tool output payloads) to reproduce high heap usage.",
-        "Node.js environment with `--max-old-space-size` restrictions enabled for memory profiling and testing."
+        "Sample large rollout JSONL file that reproduces high heap usage or memory exhaustion during offline export",
+        "Node.js development environment configured to run the tracing plugin unit and integration tests"
       ],
       "implementation_steps": [
-        "Inspect `plugins/tracing` to locate `convertRollout`, `turnHistoryMessages`, and `generationInput`.",
-        "Define a configurable history budget (e.g., via `LANGFUSE_CODEX_MAX_HISTORY_CHARS` or a default such as 200,000 characters).",
-        "Implement a helper function (`boundedHistory` or equivalent) that walks backwards through `historyPrefix`, accumulates messages until the character budget is reached, and prepends a descriptive placeholder for omitted earlier messages.",
-        "Update `generationInput` to use the bounded history rather than copying the full unbounded `historyPrefix`.",
-        "Evaluate whether `historyPrefix` caching/memoization or lightweight reference passing can prevent redundant allocations across generations within the same turn.",
-        "Ensure error handling or incremental sidecar marking is in place so that uploading turns sequentially marks progress and prevents a cascading backlog failure if an error occurs.",
-        "Add unit and integration tests verifying truncation behavior, placeholder insertion, environment variable overrides, and memory stability on large synthetic transcripts."
+        "Locate `convertRollout` and `generationInput` within the tracing plugin codebase.",
+        "Implement a helper function (`boundedHistory` or `truncateHistoryPrefix`) that traverses `historyPrefix` backwards from the most recent message, accumulates characters up to a budget (defaulting to e.g. 200,000 chars, overridable by `LANGFUSE_CODEX_MAX_HISTORY_CHARS`), and prepends an omitted marker message (e.g., '[N earlier message(s) omitted]') if earlier messages exceed the limit.",
+        "Update `generationInput` to use the bounded history rather than the unbounded `historyPrefix`.",
+        "Review memory lifecycle in the turn conversion loop to avoid creating unnecessary intermediate array clones across turns and steps.",
+        "Add unit tests for `boundedHistory` checking that recent messages are preserved, older messages are truncated when exceeding character/count limits, and omission markers are correctly placed.",
+        "Add a benchmark or regression test with a simulated large rollout history to assert heap usage remains bounded within acceptable limits across multiple turns."
       ],
       "confidence": "high",
       "first_seen": "2026-10-19T02:36:30.922434+00:00",
-      "processed_at": "2026-10-19T02:36:30.922434+00:00"
+      "processed_at": "2026-10-20T02:50:48.949868+00:00"
     }
   }
 }
