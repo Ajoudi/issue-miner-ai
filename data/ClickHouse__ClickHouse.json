@@ -1,6 +1,6 @@
 {
   "repo": "ClickHouse/ClickHouse",
-  "generated_at": "2026-10-21T02:47:06.091683+00:00",
+  "generated_at": "2026-10-22T02:40:32.342345+00:00",
   "issues": {
     "80561": {
       "repo": "ClickHouse/ClickHouse",
@@ -17,37 +17,38 @@
       "updated_at": "2026-09-11T15:24:12Z",
       "need_score": 26.0,
       "feasibility": "medium",
-      "feasibility_reason": "The issue clearly identifies the problem area in the Iceberg REST catalog configuration parsing and metadata path resolution, specifically regarding how S3 endpoints or prefixes are handled when building absolute metadata paths. However, fixing it requires understanding the Iceberg REST client implementation and path normalization logic in ClickHouse, which can be complex.",
+      "feasibility_reason": "The issue provides a clear description of the problem where ClickHouse's S3 metadata path normalization fails when an s3.endpoint config is returned by the Iceberg REST catalog /v1/config response. However, fixing this requires understanding ClickHouse's internal Iceberg REST catalog client and path resolution logic, which may touch complex storage or datalake integration subsystems.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "When reading Iceberg tables via an Iceberg REST catalog returning an 's3.endpoint' configuration, ClickHouse fails to strip the base storage path prefix from 'metadata_location', resulting in concatenated malformed S3 paths like 's3://bucket/.../s3://bucket/.../metadata.json'.",
-      "root_cause_hypothesis": "The relative path calculation uses a direct string comparison (`metadata_location.starts_with(data_location)`). When 's3.endpoint' is provided in the REST catalog response, 'data_location' may be normalized using the HTTP/HTTPS endpoint or bucket URL format while 'metadata_location' remains in 's3://' URI format (or vice versa). Because the scheme and host components do not match identically, the prefix check fails and the entire URI is treated as a relative key suffix.",
-      "suggested_approach": "Normalize both 'data_location' and 'metadata_location' by parsing them as URIs and extracting the bucket name and object key components before computing relative paths, or strip URI schemes ('s3://', 'http://', 'https://') and endpoint hostnames consistently so the bucket and relative path prefix matching succeeds.",
+      "problem_summary": "When an Iceberg REST catalog returns an 's3.endpoint' config (e.g., pointing to MinIO), ClickHouse fails to recognize matching prefixes between data_location and metadata_location due to URI scheme/host differences. This causes the entire metadata_location to be appended to data_location, yielding an invalid object storage key with an embedded URI.",
+      "root_cause_hypothesis": "ClickHouse resolves relative Iceberg metadata paths using a naive string prefix check (`metadata_location.starts_with(data_location)`). When 's3.endpoint' is configured, data_location may be constructed with the HTTP/S endpoint prefix or normalized endpoint URL, while metadata_location retains an 's3://' scheme (or vice versa). Because string prefixes differ, the prefix is not stripped and metadata_location is treated as a relative path to data_location.",
+      "suggested_approach": "Normalize both data_location and metadata_location into standardized object storage paths (e.g., stripping URI schemes like 's3://', 'http://', 'https://' and endpoint hostnames/bucket names or parsing them into consistent bucket and key components) prior to calculating relative paths, or parse metadata_location using the object storage URI parser to extract the relative key directly.",
       "likely_areas": [
-        "src/Storages/Iceberg",
+        "src/Storages/DataLakes/Iceberg/",
+        "src/Databases/DataLakes/Iceberg/",
         "src/Storages/StorageIceberg.cpp",
-        "src/Databases/Iceberg",
-        "src/Disks/ObjectStorages/S3"
+        "src/IO/S3/URI.h",
+        "src/IO/S3/URI.cpp"
       ],
       "prerequisites": [
-        "Local Docker setup with MinIO and an Iceberg REST catalog (such as Apache Lakekeeper or Project Nessie) to reproduce REST config response behavior.",
-        "ClickHouse development environment capable of building and running datalake/Iceberg engine integration tests."
+        "Local ClickHouse build environment with S3 and Iceberg integration enabled",
+        "Docker environment to spin up MinIO and an Iceberg REST catalog (e.g. Apache Lakekeeper or Nessie) for reproduction and integration testing"
       ],
       "implementation_steps": [
-        "Locate the path resolution logic where 'metadata_location' is compared against 'data_location' in the Iceberg REST catalog / storage implementation.",
-        "Implement a URI normalization helper (e.g., using `Poco::URI` or ClickHouse URI parsing utilities) to extract the bucket and key path from both 'metadata_location' and 'data_location' regardless of whether the scheme is 's3://', 'http://', or 'https://'.",
-        "Adjust the prefix matching and path stripping logic so that matching is done on the normalized S3 object key or relative table path rather than raw URI strings.",
-        "Ensure backward compatibility for catalogs that do not provide 's3.endpoint' as well as path-style versus virtual-host-style S3 endpoint configurations.",
-        "Add unit tests for path resolution and URI normalization covering various scheme and endpoint combinations.",
-        "Add integration tests using an Iceberg REST catalog (or mock REST catalog server) configured with an explicit 's3.endpoint' to verify table metadata loading."
+        "Locate the path resolution snippet where `metadata_location.starts_with(data_location)` is evaluated (likely within the Iceberg catalog or metadata handling code in `src/Storages/DataLakes/Iceberg/` or `src/Databases/DataLakes/`)",
+        "Analyze how `data_location` and `metadata_location` are constructed when 's3.endpoint' is parsed from the Iceberg REST `/v1/config` response",
+        "Implement URL/path normalization using ClickHouse's S3/URI utilities (e.g., `S3::URI`) to extract bucket and object key from both URLs regardless of whether scheme is `s3://`, `http://`, or `https://`",
+        "Update the prefix comparison logic to operate on the normalized key path or bucket/key pairs instead of raw strings",
+        "Add unit tests for path normalization covering `s3://` URLs against custom endpoints (`http://minio:9000/<bucket>/<path>`)",
+        "Add or update integration tests with MinIO and Iceberg REST catalog verifying that metadata and table contents can be queried without path duplication errors"
       ],
       "confidence": "high",
       "first_seen": "2026-08-11T01:07:40.092772+00:00",
-      "processed_at": "2026-10-07T03:37:34.656931+00:00"
+      "processed_at": "2026-10-22T02:40:14.653329+00:00"
     },
     "76518": {
       "repo": "ClickHouse/ClickHouse",
@@ -345,38 +346,40 @@
       "updated_at": "2026-09-11T15:43:59Z",
       "need_score": 14.8,
       "feasibility": "medium",
-      "feasibility_reason": "The issue provides clear reproduction steps and points to a missing column error during mutations/deletions on tables containing ephemeral columns. However, understanding how ephemeral columns are handled during mutations in mutations/mutation engine logic might require deeper codebase familiarity.",
+      "feasibility_reason": "The issue involves mutations in ClickHouse failing when ephemeral columns are present due to missing column resolution during mutation planning. While reproducible, it requires understanding ClickHouse's internal mutation and storage subsystems.",
       "self_contained": true,
       "needs_special_environment": false,
-      "blockers": [],
+      "blockers": [
+        "Deep familiarity with ClickHouse mutation analysis and column handling for ephemeral/materialized columns is required."
+      ],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Executing lightweight DELETE queries on a table with a MATERIALIZED column depending on an EPHEMERAL column fails with an UNKNOWN_IDENTIFIER error for the EPHEMERAL column.",
-      "root_cause_hypothesis": "Lightweight DELETE planning (likely in InterpreterDeleteQuery or mutation pipeline construction) unnecessarily includes or evaluates default/materialized column expressions when constructing the pipeline for filtering or mutating `_row_exists`. Because EPHEMERAL columns are not physically stored in parts, evaluating the MATERIALIZED column expression fails due to missing source columns.",
-      "suggested_approach": "Ensure that lightweight DELETE query planning only resolves columns required by the WHERE clause and the internal row-tracking columns (such as `_row_exists`), avoiding redundant expansion or calculation of MATERIALIZED/DEFAULT column DAGs that depend on EPHEMERAL or non-existent columns.",
+      "problem_summary": "Executing a lightweight DELETE on a table containing a MATERIALIZED column that depends on an EPHEMERAL column fails with an UNKNOWN_IDENTIFIER error ('Missing columns: <ephemeral_col>'), even when the DELETE WHERE condition does not reference either column.",
+      "root_cause_hypothesis": "During lightweight DELETE planning or mutation expression construction, ClickHouse attempts to calculate or validate expressions for all default/materialized columns or collects required columns for mutation actions without filtering out materialized columns that do not need to be updated during lightweight delete. Because lightweight delete only writes row masks (_row_exists) or recalculates specific mutation targets, evaluating expressions depending on non-stored EPHEMERAL columns fails when those columns are absent in the storage/reading pipeline.",
+      "suggested_approach": "Identify the pipeline setup for lightweight DELETE (and mutations handling row masks) and ensure that MATERIALIZED column expressions depending on EPHEMERAL columns are not evaluated or added to required columns when performing operations that do not modify or recompute those MATERIALIZED columns.",
       "likely_areas": [
-        "src/Interpreters/InterpreterDeleteQuery.cpp",
+        "src/Storages/MergeTree/MergeTreeDataSelectExecutor.cpp",
         "src/Storages/MergeTree/MergeTreeData.cpp",
-        "src/Storages/StorageMergeTree.cpp",
+        "src/Storages/MutationCommands.cpp",
         "src/Interpreters/MutationsInterpreter.cpp",
-        "src/Interpreters/ExpressionAnalyzer.cpp"
+        "src/Interpreters/InterpreterDeleteQuery.cpp"
       ],
       "prerequisites": [
-        "Local ClickHouse development environment capable of building and running clickhouse-server and clickhouse-client.",
-        "Understanding of lightweight delete execution path and column dependency resolution in ClickHouse."
+        "Working ClickHouse development environment with C++20 and CMake build toolchain.",
+        "Ability to run stateless functional tests (e.g., using ./runner or clickhouse-test)."
       ],
       "implementation_steps": [
-        "Reproduce the bug using a stateless test script in `tests/queries/0_stateless/` with a MergeTree table having an EPHEMERAL column and a MATERIALIZED column depending on it, then executing a `DELETE FROM <table> WHERE ...` query.",
-        "Trace the stack trace of the `Missing columns: 'IDEphemereal' while processing query` error using a debug build or `gdb` during execution of `DELETE FROM`.",
-        "Inspect the query analysis and pipeline preparation in `InterpreterDeleteQuery` and the underlying mutation interpreter to identify where materialized/default column expressions are being analyzed or added to the execution DAG.",
-        "Modify the mutation/delete header and expression building logic so that materialized column expressions are skipped when the operation only updates `_row_exists` or does not mutate those specific columns.",
-        "Verify that `ALTER TABLE ... UPDATE`, `ALTER TABLE ... DELETE`, regular `DELETE FROM`, and `INSERT` still work properly and preserve expected materialized column semantics.",
-        "Add a functional test in `tests/queries/0_stateless/` validating `DELETE FROM` on tables with EPHEMERAL and dependent MATERIALIZED columns."
+        "Reproduce the issue locally using clickhouse-client or a stateless test with a MergeTree table having a MATERIALIZED column depending on an EPHEMERAL column, followed by a DELETE statement.",
+        "Trace the execution stack in InterpreterDeleteQuery and MutationsInterpreter (specifically when preparing the mutation steps and analyzing required columns).",
+        "Inspect where expressions for MATERIALIZED columns are gathered (e.g., in MutationsInterpreter or MergeTreeData::getExpressionsForDelayedDefaults / getColumnsForUpdate) and verify whether lightweight delete mistakenly includes re-materialization of columns that are not part of the update.",
+        "Adjust the column requirement resolution or mutation DAG builder so that MATERIALIZED columns (and transitively their referenced EPHEMERAL dependencies) are excluded from the required source columns for lightweight DELETE operations.",
+        "Verify that regular `ALTER TABLE ... UPDATE/MATERIALIZE COLUMN` statements referencing EPHEMERAL columns still handle errors or re-evaluations appropriately.",
+        "Add a functional stateless test case under tests/queries/0_stateless/ covering DELETE on tables with MATERIALIZED columns dependent on EPHEMERAL columns."
       ],
       "confidence": "high",
       "first_seen": "2026-09-12T02:21:46.544055+00:00",
-      "processed_at": "2026-10-07T03:39:48.368968+00:00"
+      "processed_at": "2026-10-22T02:40:32.342284+00:00"
     },
     "11942": {
       "repo": "ClickHouse/ClickHouse",
@@ -394,36 +397,36 @@
       "updated_at": "2026-09-11T18:08:19Z",
       "need_score": 14.8,
       "feasibility": "medium",
-      "feasibility_reason": "The issue involves configuration persistence and profile settings for DDL operations across server restarts, which requires tracing how profile settings are stored, loaded, and initialized upon startup compared to on-the-fly reloads. While reproducible via a provided script, ClickHouse server configuration and user profiles subsystem can be complex.",
+      "feasibility_reason": "The issue involves configuration reloading and persistence for profiles (likely ClickHouse users/profiles configuration handling), which might span server startup initialization logic versus runtime configuration updates. A capable developer could trace where `allow_ddl` is initialized and reloaded, but it touches core server startup subsystems.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Setting 'allow_ddl = 0' in the default profile prevents subsequent DDL operations across all profiles after a server restart, particularly affecting asynchronous/ON CLUSTER queries executed by background workers.",
-      "root_cause_hypothesis": "Background DDL execution (such as DDLWorker processing tasks from ZooKeeper for ON CLUSTER queries, or internal startup DDL routines) uses an internal execution context derived from the server's global context or the default profile. When 'allow_ddl' is disabled in the default profile, the DDLWorker inherits this restriction upon server restart, causing distributed or background DDL queries to fail regardless of the initiating user's profile settings.",
-      "suggested_approach": "Ensure that internal execution contexts used by DDLWorker (and any internal server query execution routines) explicitly set 'allow_ddl = 1' or bypass the client-facing 'allow_ddl' setting check, as authorization has already been verified at the entrypoint of the query.",
+      "problem_summary": "Setting allow_ddl to 0 in the default profile causes DDL queries (especially ON CLUSTER queries or server-side DDL execution) to fail across all profiles after a server restart, even if an explicit profile has allow_ddl set to 1.",
+      "root_cause_hypothesis": "The global/system context and internal background execution threads (such as DDLWorker executing ON CLUSTER queries or server initialization tasks) inherit settings from the default profile specified in config.xml (<default_profile>default</default_profile>). When allow_ddl is 0 in the default profile, internal DDL tasks executed by system background threads run with allow_ddl = 0 and fail.",
+      "suggested_approach": "Ensure that system contexts and internal background workers (specifically DDLWorker and internal cluster task execution) explicitly enforce or bypass `allow_ddl` checks (e.g., setting allow_ddl = 1 or using a privileged internal context) so that restricting user-facing default profiles does not break internal DDL processing across server restarts.",
       "likely_areas": [
         "src/Interpreters/DDLWorker.cpp",
-        "src/Interpreters/Context.cpp",
         "src/Interpreters/InterpreterCreateQuery.cpp",
+        "src/Interpreters/Context.cpp",
         "src/Server/Server.cpp"
       ],
       "prerequisites": [
-        "Working ClickHouse build and test environment (C++20/cmake/ninja).",
-        "Local ClickHouse cluster or ZooKeeper instance capable of executing ON CLUSTER DDL queries."
+        "A local ClickHouse build environment with CMake, Ninja, and a C++20 compiler.",
+        "A functional ZooKeeper/Keeper cluster configuration to test distributed DDL (ON CLUSTER)."
       ],
       "implementation_steps": [
-        "Reproduce the issue by creating a custom profile with allow_ddl = 1, setting allow_ddl = 0 in the default profile, executing an ON CLUSTER DDL query, and restarting clickhouse-server.",
-        "Examine DDLWorker.cpp where task execution context is created (e.g., `DDLWorker::processTask` or `createContextForQuery`) and inspect how settings are initialized.",
-        "Explicitly override `settings.allow_ddl = true` (or `setSetting(\"allow_ddl\", 1)`) on the context created for executing DDL worker tasks, or adjust the context creation logic to not inherit restrictive default user profile settings for internal DDL processing.",
-        "Verify whether other background or system queries (like table loading/reattaching on startup) are affected by default profile settings and ensure internal contexts have necessary operational permissions.",
-        "Add an integration test (e.g., in `tests/integration/test_ddl_worker/`) that configures the default profile with allow_ddl = 0, restarts the server, and verifies that distributed DDL queries from authorized profiles succeed."
+        "Reproduce the issue by starting ClickHouse with default profile having `<allow_ddl>0</allow_ddl>` and a custom profile having `<allow_ddl>1</allow_ddl>`, executing a DDL query (particularly with `ON CLUSTER`), and restarting the server.",
+        "Inspect `DDLWorker` context initialization to determine what profile or settings are inherited when creating query contexts for executing distributed DDL tasks.",
+        "Modify `DDLWorker::processTask` or the context creation logic for internal/distributed query execution to explicitly enable `allow_ddl = 1` in the query context used for executing cluster tasks.",
+        "Verify whether any other internal server startup procedures or system queries incorrectly depend on the default profile's `allow_ddl` setting.",
+        "Write an integration/functional test verifying that DDL operations (including `ON CLUSTER`) succeed under a privileged profile when the default profile has `allow_ddl = 0` both before and after server restarts."
       ],
       "confidence": "high",
       "first_seen": "2026-09-19T02:27:12.673698+00:00",
-      "processed_at": "2026-10-07T03:39:29.965340+00:00"
+      "processed_at": "2026-10-22T02:40:24.092108+00:00"
     }
   }
 }
