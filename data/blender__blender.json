@@ -1,6 +1,6 @@
 {
   "repo": "blender/blender",
-  "generated_at": "2026-10-22T02:41:30.455026+00:00",
+  "generated_at": "2026-10-23T03:00:58.345232+00:00",
   "issues": {
     "160373": {
       "repo": "blender/blender",
@@ -21,36 +21,38 @@
       "updated_at": "2026-06-25T18:10:34+02:00",
       "need_score": 16.0,
       "feasibility": "medium",
-      "feasibility_reason": "The issue involves UI layout and column width calculation logic for vector types in the spreadsheet editor. While well-defined, it requires navigating Blender's custom UI and spreadsheet codebase without prior insider knowledge.",
+      "feasibility_reason": "The issue clearly identifies the problem in the spreadsheet column width calculation for vector/multi-component types where total width is divided equally instead of per-component sizing, but locating the exact UI layout code for the spreadsheet columns requires navigating Blender's UI/editors codebase.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Auto-fitting vector column widths in the Spreadsheet editor results in text truncation when vector component values have significantly differing lengths (e.g., [1000000000, 0, 0]), because width estimation measures the concatenated string or sum of lengths rather than scaling based on the widest component.",
-      "root_cause_hypothesis": "The vector column width calculation in `estimate_max_column_width` formats all components together and measures the aggregate width (or estimates length from the joined string). However, the spreadsheet draws vector components in equally-sized sub-columns. When one component is much longer than the others, its sub-column width (total column width divided by component count) is insufficient, causing truncation.",
-      "suggested_approach": "Adjust the column width estimation logic for multi-component types (vector, color, quaternion, etc.) so that the estimated width is calculated based on the maximum component width multiplied by the number of components (plus inter-component spacing/padding), ensuring that each sub-column is wide enough to display the longest value without truncation.",
+      "problem_summary": "Auto-fitting column width in the Spreadsheet editor truncates wide vector components when component values differ significantly because width estimation computes the concatenated string width rather than accounting for the equal-width division among vector components.",
+      "root_cause_hypothesis": "The column width estimation function (likely `estimate_max_column_width` or component value formatters in `space_spreadsheet`) measures the width of the full formatted vector string as a single text block. However, the spreadsheet renderer allocates equal column sub-widths for each component, causing components wider than the average component width to be clipped.",
+      "suggested_approach": "Adjust the column width estimation logic for multi-component types (such as vectors, colors, and quaternions) so that the estimated cell width is based on the maximum width required by any individual component multiplied by the number of components (accounting for inter-component padding and separators).",
       "likely_areas": [
+        "source/blender/editors/space_spreadsheet/",
         "source/blender/editors/space_spreadsheet/spreadsheet_column.cc",
-        "source/blender/editors/space_spreadsheet/spreadsheet_column.hh",
-        "source/blender/editors/space_spreadsheet/spreadsheet_layout.cc"
+        "source/blender/editors/space_spreadsheet/spreadsheet_cell_draw.cc",
+        "source/blender/editors/space_spreadsheet/spreadsheet_row_filter.cc"
       ],
       "prerequisites": [
-        "Working Blender build environment (C/C++ and CMake)",
-        "Familiarity with the Spreadsheet Editor (`space_spreadsheet`) and Blender's UI text measurement functions (e.g., `BLF_width` or `UI_fontstyle_string_width`)"
+        "A working Blender C++ development and build environment",
+        "Familiarity with the Spreadsheet editor codebase (`space_spreadsheet`) and UI font/string width calculation utilities"
       ],
       "implementation_steps": [
-        "Locate the column width estimation logic in `source/blender/editors/space_spreadsheet/` (specifically `estimate_max_column_width` or equivalent function handling column auto-sizing).",
-        "Inspect how multi-component data types (Float2/3/4, Int2/3, Color, Quaternion) are formatted and measured during column width estimation versus how cells are partitioned during rendering.",
-        "Update the estimation logic for multi-component values so that instead of measuring the concatenated formatted string, it measures or estimates the text width of each component individually, determines the maximum component width, and calculates the total width as `max_component_width * num_components` plus the padding/separator gaps.",
-        "Ensure non-monospaced font width differences and UI margins/icons are properly taken into account so sub-cells do not truncate.",
-        "Verify that single-component columns (floats, ints, strings, booleans) remain unaffected by the change.",
-        "Test by opening the reproduction .blend file with vector values like `(1000000000, 0, 0)` and double-clicking the column divider to auto-fit width, checking that the widest component is fully visible and no truncation occurs."
+        "Locate the column width auto-fit and width estimation implementation, specifically `estimate_max_column_width` or similar functions in `source/blender/editors/space_spreadsheet/`.",
+        "Inspect how multi-component data types (e.g., float2/3/4, int2/3, color, quaternion) are formatted and measured during column width auto-fitting.",
+        "Update the measurement logic for multi-component types to evaluate the string representation or pixel width of each component individually for sample rows.",
+        "Calculate the cell width requirement as `(max_component_width * num_components) + component_separators_padding`, ensuring the longest component fits within its allocated sub-cell slot.",
+        "Verify font metrics measurement handling (e.g., using `BLF_width` or estimated character length consistent with the rest of the spreadsheet auto-fit logic).",
+        "Test with the reproduction file containing vector values with extreme differences in magnitude (e.g., `1000000000, 0, 0`) and confirm auto-fit allocates sufficient width without clipping any component.",
+        "Verify regression behavior on single-value columns (float, int, string, boolean) and other vector/color columns."
       ],
       "confidence": "high",
       "first_seen": "2026-08-24T00:52:22.891477+00:00",
-      "processed_at": "2026-10-08T03:54:34.357094+00:00"
+      "processed_at": "2026-10-23T03:00:58.345166+00:00"
     },
     "153791": {
       "repo": "blender/blender",
