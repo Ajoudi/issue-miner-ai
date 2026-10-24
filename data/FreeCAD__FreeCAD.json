@@ -1,6 +1,6 @@
 {
   "repo": "FreeCAD/FreeCAD",
-  "generated_at": "2026-10-23T02:58:59.195794+00:00",
+  "generated_at": "2026-10-24T02:52:45.445071+00:00",
   "issues": {
     "24238": {
       "repo": "FreeCAD/FreeCAD",
@@ -322,36 +322,37 @@
       "updated_at": "2026-09-10T15:08:56Z",
       "need_score": 21.6,
       "feasibility": "high",
-      "feasibility_reason": "The issue describes a simple shortcut conflict in the Sketcher workbench which can be resolved by changing the default keyboard shortcut for the Scale or Rotate/Polar Transform tool in the UI definition or command mapping files.",
+      "feasibility_reason": "The issue clearly identifies a keyboard shortcut conflict in the Sketcher workbench. Fixing this requires updating the default shortcut mapping configuration file or registry for the Sketcher workbench tools.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "under_1h",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "The Sketcher tool 'Scale' has a default shortcut sequence ('Z, P, S') whose prefix ('Z, P') matches the shortcut for 'Rotate / Polar Transform', causing Qt to immediately trigger the Rotate command before 'S' can be pressed.",
-      "root_cause_hypothesis": "The accelerator shortcut string defined for the Sketcher Scale command begins with an existing complete multi-key shortcut assigned to another command ('Z, P'), creating an unreachable prefix conflict in FreeCAD's shortcut handler.",
-      "suggested_approach": "Locate the command definition for Sketcher Scale (and related transform tools in Sketcher) and update the shortcut accelerator string so that it does not share an active prefix with another shortcut, ensuring all shortcuts in the group remain distinct and reachable.",
+      "problem_summary": "The Sketcher Scale tool default shortcut sequence ('Z, P, S') is unreachable because 'Z, P' is registered to Rotate / Polar Transform, causing the action to trigger before the third keystroke can be registered.",
+      "root_cause_hypothesis": "Multi-key accelerator sequences in Qt trigger as soon as an exact match is reached. Since 'Z, P' is assigned to Rotate / Polar Transform, pressing 'Z' then 'P' matches that shortcut immediately and consumes the event, preventing the 'Z, P, S' sequence for Scale from ever triggering.",
+      "suggested_approach": "Update the default keyboard shortcut for the Scale command in Sketcher to avoid prefix collision with other Sketcher commands, resolving any secondary collisions (e.g., if reassigning to 'Z, S', adjust conflicting commands such as Mirror).",
       "likely_areas": [
         "src/Mod/Sketcher/Gui/CommandAlterGeometry.cpp",
         "src/Mod/Sketcher/Gui/CommandTransform.cpp",
-        "src/Mod/Sketcher/Gui/CommandSketcherTools.cpp"
+        "src/Mod/Sketcher/Gui/CommandSketcherVirtualSpace.cpp",
+        "src/Mod/Sketcher/Gui/Workbench.cpp"
       ],
       "prerequisites": [
-        "Ability to build FreeCAD and run the Sketcher workbench locally",
-        "Familiarity with FreeCAD's `DEF_STD_CMD_A` command macro and `sAccel` shortcut definition conventions"
+        "Ability to build FreeCAD and the Sketcher module from source.",
+        "Understanding of FreeCAD Command registration (sAccel string definition and Qt QKeySequence formatting)."
       ],
       "implementation_steps": [
-        "Search the codebase in `src/Mod/Sketcher/Gui/` for `\"Z, P, S\"` and `\"Z, P\"` to identify where the Scale and Rotate / Polar Transform commands are defined.",
-        "Inspect the existing shortcuts in the same tool group/toolbar to review for any other conflicting multi-key prefixes.",
-        "Update the shortcut string for the Scale command (e.g. to a distinct sequence that does not conflict with existing bindings, aligning with community/maintainer consensus on shortcut assignments).",
-        "Verify whether any documentation, tooltips, or tests reference the old shortcut string.",
-        "Compile FreeCAD and open the Sketcher workbench.",
-        "Test that pressing the shortcuts for both Rotate / Polar Transform and Scale triggers their respective tools without interference."
+        "Search the Sketcher codebase for the 'Z, P, S' string to locate the command definition for the Scale tool (and check definitions for 'Z, P', 'Z, S', etc.).",
+        "Inspect existing Sketcher default shortcuts across tools to identify available, non-conflicting key sequences with intuitive mnemonics.",
+        "Update the sAccel property (or shortcut definition string) for the Scale command (e.g., to 'Z, S' or another agreed shortcut sequence), adjusting any other transform tools if necessary to maintain consistency without creating new collisions.",
+        "Compile the Sketcher module and run FreeCAD.",
+        "Open Sketcher, draw geometry, and verify that pressing the configured key sequences triggers Rotate and Scale separately without intercepting each other.",
+        "Verify that the updated shortcut appears correctly in the menu, toolbar tooltip, and keyboard shortcut settings."
       ],
       "confidence": "high",
       "first_seen": "2026-10-08T03:52:19.920984+00:00",
-      "processed_at": "2026-10-08T03:52:19.920984+00:00"
+      "processed_at": "2026-10-24T02:52:45.445003+00:00"
     },
     "24440": {
       "repo": "FreeCAD/FreeCAD",
