@@ -1,6 +1,6 @@
 {
   "repo": "FreeCAD/FreeCAD",
-  "generated_at": "2026-10-24T02:52:45.445071+00:00",
+  "generated_at": "2026-10-25T02:34:23.222754+00:00",
   "issues": {
     "24238": {
       "repo": "FreeCAD/FreeCAD",
@@ -270,40 +270,39 @@
       "created_at": "2025-05-01T09:22:13Z",
       "updated_at": "2026-08-27T18:40:33Z",
       "need_score": 21.6,
-      "feasibility": "medium",
-      "feasibility_reason": "The issue requests changing the default behavior of the copy dialog for App::Link objects to not preselect link sources. While marked as a good first issue, navigating the FreeCAD copy/duplicate dialog logic and App::Link source selection code without prior codebase knowledge may take some investigation.",
+      "feasibility": "high",
+      "feasibility_reason": "The issue describes a clear UI behavior change for copying App::Link objects, labeled as a 'Good first issue' and tagged for a Hackathon. It points to a specific dialog where sources are preselected, and outlines the desired change (only the link should be copied, pointing to the original source).",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "When copying an App::Link object (or an assembly containing links), the copy/duplicate dependency selection dialog automatically preselects the linked source objects for copying, which duplicates the source objects instead of copying just the link that references the existing source.",
-      "root_cause_hypothesis": "The copy dependency resolution logic in FreeCAD (likely in Gui::Application, Dialog::DlgCheckableTree, or App::DocumentObject/App::LinkBaseExtension dependency traversal) includes outbound link target dependencies when gathering objects to be preselected in the copy dialog, without distinguishing between structural child objects and linked references.",
-      "suggested_approach": "Adjust the dependency gathering or pre-selection logic used during clipboard copy / duplicate dialog creation so that App::Link / App::LinkBase linked targets (or non-contained referenced objects) are excluded from the preselected objects by default, while keeping them visible or selectable in the dialog if needed.",
+      "problem_summary": "When copying or duplicating objects containing App::Link instances in FreeCAD, the copy dependency selection dialog pre-selects (checks) the link's source objects by default, which can unintentionally duplicate referenced external objects rather than creating a new link pointing to the original source.",
+      "root_cause_hypothesis": "The dependency resolution logic used when preparing the copy dialog (such as querying `getOutList()` or dependency graphs in GUI copy commands) treats `App::Link`'s target/source (`LinkedObject`) as a regular dependency and checks all dependencies by default, without distinguishing between structural sub-objects and referenced link targets.",
+      "suggested_approach": "Adjust the copy/duplicate dialog initialization logic so that objects referenced by `App::Link` (via `LinkedObject` or equivalent link properties) are not checked by default when populating the dependency tree, or teach the dependency pre-selection algorithm to exclude referenced link sources from the initial checked state while still allowing users to manually check them if desired.",
       "likely_areas": [
-        "src/Gui/Application.cpp",
-        "src/Gui/DlgCheckableTree.cpp",
-        "src/Gui/DlgCheckableTree.h",
+        "src/Gui/DlgTreeWidget.cpp",
+        "src/Gui/DlgTreeWidget.h",
         "src/Gui/CommandDoc.cpp",
+        "src/Gui/Application.cpp",
         "src/App/Link.cpp"
       ],
       "prerequisites": [
-        "Working FreeCAD development environment capable of building the GUI",
-        "Understanding of FreeCAD's document object dependency tree and App::Link architecture"
+        "Working FreeCAD development environment and build setup (CMake, C++17, Qt6/Qt5)",
+        "Familiarity with FreeCAD's document object tree, `App::Link`, and GUI copy/paste/duplicate workflows"
       ],
       "implementation_steps": [
-        "Locate the copy command implementation and the dialog creation (typically in Gui::Application::copy or Gui::Dialog::DlgCheckableTree / Gui::CommandDoc).",
-        "Trace where dependencies are collected and marked as checked/preselected before showing the copy dialog to the user.",
-        "Inspect how App::Link targets are retrieved, specifically checking whether the dependency is marked as a link reference (e.g. via isLinkSource, App::LinkBase::getLinkedObject, or PropertyLink / PropertyXLink).",
-        "Update the dependency collection or check state logic so that objects referenced purely via an App::Link / App::LinkBase reference are either excluded from the prechecked list or defaulted to unchecked.",
-        "Verify that the paste/duplicate logic properly preserves the reference to the original link source when the source itself is not copied.",
-        "Manually test copying an App::Link alone and an App::Part containing App::Links to ensure only the link/part is preselected and paste correctly points to the existing linked objects.",
-        "Add or update unit/GUI tests covering copying objects with links to ensure no regression."
+        "Trace the copy/duplicate command in FreeCAD (e.g. `StdCmdCopy` or duplicate action in `src/Gui/CommandDoc.cpp` and `DlgTreeWidget`) to identify where the dependency list is collected and where item check states are initially set.",
+        "Inspect how `App::Link` and its source (`LinkedObject`) are identified among the dependencies of selected objects.",
+        "Modify the dependency tree initialization logic so that when an `App::Link` is being copied, its linked source object (`LinkedObject`) is either unchecked by default or not marked as a mandatory dependency.",
+        "Ensure that if an assembly or container (such as `App::Part`) contains links and the assembly is copied, the links remain checked while their external link sources remain unchecked by default.",
+        "Verify that copying only the link correctly reproduces a link object that still points to the original link source upon paste/duplication.",
+        "Test edge cases: copying a link whose source is explicitly also in the initial user selection (in this case the source should remain checked because the user explicitly selected it), nested links, and link groups."
       ],
       "confidence": "high",
       "first_seen": "2026-10-08T03:52:12.679412+00:00",
-      "processed_at": "2026-10-08T03:52:12.679412+00:00"
+      "processed_at": "2026-10-25T02:34:23.222699+00:00"
     },
     "32557": {
       "repo": "FreeCAD/FreeCAD",

@@ -1,6 +1,6 @@
 {
   "repo": "ClickHouse/ClickHouse",
-  "generated_at": "2026-10-24T02:43:48.304317+00:00",
+  "generated_at": "2026-10-25T02:33:24.111293+00:00",
   "issues": {
     "80561": {
       "repo": "ClickHouse/ClickHouse",
@@ -300,38 +300,36 @@
       "updated_at": "2026-09-04T13:35:08Z",
       "need_score": 14.8,
       "feasibility": "medium",
-      "feasibility_reason": "The issue describes a filesystem error (File name too long) when dropping a database containing a table with an extremely long name, leading to a stuck DDL log in ZooKeeper/Keeper. While reproducible, it requires understanding the DDL queue handling for Replicated databases and how errors during DROP DATABASE affect the state machine.",
+      "feasibility_reason": "The issue involves a specific filesystem error during a DROP DATABASE due to extremely long file names when moving to metadata_dropped, which leaves the replicated database in a stuck DDL/ZooKeeper state. While the reproduction steps are clear, dealing with replicated database DDL queues and filesystem path length limits requires careful handling.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "In Replicated database engine, dropping a database containing a table with a name near the filesystem limit causes a 'File name too long' error when moving metadata to metadata_dropped. This leaves the DDL worker thread stopped and permanently wedges the DDL queue even across restarts.",
-      "root_cause_hypothesis": "When dropping a table or database, ClickHouse moves table metadata to `metadata_dropped/<database>.<table_name>.<uuid>.sql`. Appending the database name, table UUID, and extension exceeds the filesystem limit (typically 255 bytes / NAME_MAX) for long table names. During `DROP DATABASE` execution in `DatabaseReplicated`, the DDL worker stops (`stop_flag = true`) in anticipation of database destruction. When the drop fails with an exception, the stop state is not reverted and the DDL task remains stuck in the queue, causing an unrecoverable failure loop on restart.",
-      "suggested_approach": "Two-pronged fix: 1) Ensure metadata filenames in `metadata_dropped` never exceed `NAME_MAX` by truncating/hashing long prefixes or using just the UUID; 2) Improve exception handling in `DatabaseReplicated` DDL execution so that transient or failed DROP operations do not permanently leave the DDL worker stopped or wedged in an infinite retry loop without recovery.",
+      "problem_summary": "Dropping a Replicated database containing a table with a long name fails with ENAMETOOLONG when ClickHouse renames metadata files into `metadata_dropped/`. This leaves the database's DDL worker stopped (`stop_flag = true`), rendering the database unusable and freezing the DDL queue even across restarts.",
+      "root_cause_hypothesis": "When moving metadata files of dropped tables to the `metadata_dropped/` directory, ClickHouse constructs a filename combining database name, table name, and UUID (`<db>.<table_name>.<uuid>.sql`). When the combined length exceeds the filesystem's `NAME_MAX` (typically 255 bytes), `std::filesystem::rename` throws an exception. In `DatabaseReplicated`, the drop database logic stops the DDL worker and sets `stop_flag = true` before/during execution, but does not recover or restart the DDL worker if dropping metadata or tables throws an unhandled exception.",
+      "suggested_approach": "1. Ensure filename lengths destined for `metadata_dropped/` never exceed `NAME_MAX` (255 bytes) by truncating the prefix or hashing excess characters while keeping the UUID and `.sql` suffix unique.\n2. In `DatabaseReplicated`, ensure proper exception safety during database drop / DDL queue execution so that the DDL worker is not left permanently stopped on failure or that failures can be properly unwound/reported without bricking the queue.",
       "likely_areas": [
+        "src/Databases/DatabaseCatalog.cpp",
         "src/Databases/DatabaseReplicated.cpp",
         "src/Databases/DatabaseReplicatedDDLWorker.cpp",
-        "src/Interpreters/DatabaseCatalog.cpp",
-        "src/Databases/DatabaseAtomic.cpp",
-        "src/Storages/StorageMergeTree.cpp"
+        "src/Databases/DatabaseOnDisk.cpp"
       ],
       "prerequisites": [
-        "A local ClickHouse development environment with Keeper / ZooKeeper enabled to test Replicated databases",
-        "Familiarity with DatabaseCatalog metadata handling, `metadata_dropped`, and DatabaseReplicated DDL queue execution"
+        "A local ClickHouse build environment with Keeper / ZooKeeper enabled for integration testing",
+        "Understanding of ClickHouse `DatabaseCatalog` metadata management and `DatabaseReplicated` DDL queue processing"
       ],
       "implementation_steps": [
-        "Investigate `DatabaseCatalog::enqueueDatabaseDropped` and `DatabaseCatalog::enqueueTableDropped` (or equivalent metadata_dropped path generation) to inspect how destination filenames are formatted.",
-        "Introduce truncation or hashing of the table/database name component when generating destination paths in `metadata_dropped` so the filename strictly fits within 255 bytes (e.g., `<uuid>.sql` or truncated `<escaped_name>.<uuid>.sql`).",
-        "Alternatively or additionally, ensure table name length checks at creation account for the overhead of the `.metadata_dropped` suffix / uuid, or enforce NAME_MAX constraints consistently.",
-        "Examine `DatabaseReplicated::drop` and `DatabaseReplicatedDDLWorker`: ensure that if `DROP DATABASE` throws an exception, `stop_flag` is reset or the worker is recovered/re-initialized if the database is not actually dropped.",
-        "Check how DDL queue processing in `DatabaseReplicatedDDLWorker` handles fatal metadata errors so that the replication queue can either log a fatal error / mark the task failed or be resumed rather than permanently deadlocking all DDL operations.",
-        "Add an integration test creating a Replicated database, creating a table with a name near the character limit, executing `DROP DATABASE`, and asserting that it either drops successfully or fails gracefully without stopping replication/DDLs."
+        "Inspect the logic responsible for creating filenames in `metadata_dropped/` (typically in `DatabaseCatalog::removeTableFromCatalog` or `DatabaseOnDisk`).",
+        "Implement filename length sanitization for `metadata_dropped/`: if the constructed filename exceeds `NAME_MAX` (or 255 bytes), truncate the `database.table` component or replace the overflow with a hash while preserving the UUID and `.sql` extension.",
+        "Examine `DatabaseReplicated::dropDatabase` and `DDLWorker` execution: wrap the drop/removal operations so that if an unhandled exception occurs during drop execution, the DDL worker state / `stop_flag` is either restored or cleaned up safely instead of wedging the replication queue.",
+        "Verify behavior during DDL task execution: check why the DDL task gets stuck retrying indefinitely on unrecoverable filesystem errors, and verify if existing error-handling mechanisms (like marking the DDL task failed in Keeper) apply.",
+        "Add functional tests with long table names in a Replicated database verifying that `DROP DATABASE` succeeds without filesystem errors and does not stall subsequent DDL queries."
       ],
       "confidence": "high",
       "first_seen": "2026-09-06T02:10:54.873773+00:00",
-      "processed_at": "2026-10-10T03:43:45.679643+00:00"
+      "processed_at": "2026-10-25T02:33:24.111234+00:00"
     },
     "71793": {
       "repo": "ClickHouse/ClickHouse",
