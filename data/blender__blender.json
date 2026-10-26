@@ -1,6 +1,6 @@
 {
   "repo": "blender/blender",
-  "generated_at": "2026-10-25T02:35:16.880424+00:00",
+  "generated_at": "2026-10-26T02:52:42.207222+00:00",
   "issues": {
     "160373": {
       "repo": "blender/blender",
@@ -122,40 +122,43 @@
       "updated_at": "2026-09-27T16:43:04+02:00",
       "need_score": 16.0,
       "feasibility": "medium",
-      "feasibility_reason": "The issue describes a missing UI interaction feature (auto-scrolling during text selection drag) in Blender's Python Console. While the reproduction steps are clear, implementing continuous selection-dragging with auto-scroll requires deep knowledge of Blender's window manager event loop, UI drawing, and text editor/console event handling, making it moderately complex for an outsider.",
+      "feasibility_reason": "The issue describes a missing UI interaction feature (auto-scrolling during text selection drag) in Blender's Python Console. While the reproduction steps are clear, implementing continuous mouse drag selection with auto-scrolling requires deep knowledge of Blender's event handling, window manager, and the specific UI drawing/scrolling loop of the console region.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [
-        "Familiarity with Blender's custom UI event handling and console scrollback mechanism is needed."
+        "Requires familiarity with Blender's custom UI event handling and console scrolling mechanisms."
       ],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "In the Blender Python Console editor, dragging the mouse to select text does not auto-scroll the console viewport when the cursor reaches the viewport boundaries, nor does Shift+Click properly extend an active selection across scrollback history.",
-      "root_cause_hypothesis": "The console mouse selection operator (`CONSOLE_OT_select_set` or modal click-drag operator in `source/blender/editors/space_console/console_ops.c`) does not support auto-scrolling when mouse coordinates fall outside the region bounds during drag modal execution, and it calculates selection coordinates relative to visible region lines without adjusting for scroll offset changes or supporting continuous Shift-click range extensions.",
-      "suggested_approach": "Implement auto-scrolling during the mouse drag modal state in the Console editor (similar to text editor / standard UI widgets) using a modal timer or view bounds check, and update the selection endpoint relative to the scrolled content buffer rather than clamped static screen space. Additionally, support Shift-click to extend the selection endpoint while preserving the original anchor.",
+      "problem_summary": "In the Blender Python Console, selecting text via mouse drag does not auto-scroll the viewport when reaching the upper or lower boundaries of the view, preventing continuous selection of output spanning across multiple screens.",
+      "root_cause_hypothesis": "The console mouse selection operator (`CONSOLE_OT_select_set` / selection modal handling in `console_ops.cc`) only calculates selection coordinates within the currently visible viewport during mouse move events. It lacks a timer or modal auto-scroll handler to continuously increment/decrement the console scroll offset when the mouse cursor is held beyond the vertical region boundaries, and selection coordinates may not properly account for or update with view scroll offsets across frames.",
+      "suggested_approach": "Implement auto-scrolling during modal selection in the Console editor (similar to how text editor or outliner selection dragging operates). Register a modal timer while mouse dragging for selection; when the cursor is held near or outside the top/bottom boundaries of the console region, incrementally scroll the console view (`sc->scroll`) and re-evaluate the text selection endpoint based on the updated scroll offset.",
       "likely_areas": [
-        "source/blender/editors/space_console/console_ops.c",
-        "source/blender/editors/space_console/console_intern.h",
-        "source/blender/editors/space_console/console_draw.c",
-        "source/blender/editors/space_console/space_console.cc"
+        "source/blender/editors/space_console/console_ops.cc",
+        "source/blender/editors/space_console/space_console.cc",
+        "source/blender/editors/space_console/console_intern.hh",
+        "source/blender/editors/space_text/text_ops.cc"
       ],
       "prerequisites": [
-        "Ability to build Blender from source (C/C++ environment)",
-        "Familiarity with Blender's Window Manager (WM) modal operator event loop, timer callbacks, and editor region navigation"
+        "Working Blender build environment (C/C++ toolchain, CMake)",
+        "Familiarity with Blender's window manager modal operator lifecycle (modal timer, WM_event_add_timer, WM_event_remove_timer)",
+        "Understanding of `SpaceConsole` struct, console line data structures, and scroll offset handling"
       ],
       "implementation_steps": [
-        "Locate the mouse selection operator and event handling for `SPACE_CONSOLE` in `source/blender/editors/space_console/console_ops.c`.",
-        "Examine how text selection coordinates are mapped from screen space (region mouse Y/X) to console line buffers and character offsets in `console_draw.c` and `console_ops.c`.",
-        "Add logic in the modal event loop of the selection operator to detect when the mouse pointer is dragged near or beyond the top or bottom edges of the console region.",
-        "Register a timer (`WM_event_add_modal_handler` / `WM_event_add_timer`) when dragging out of bounds to trigger incremental scrolling of `SpaceConsole->scroll` and dynamically refresh the selection end position.",
-        "Ensure `Shift + LEFTMOUSE` click behavior inspects existing selection state to update only the active selection endpoint (`sel_end`) while retaining the selection start (`sel_start`), rather than resetting both.",
-        "Verify edge cases: dragging past the top/bottom boundary stops scrolling when reaching the beginning or end of the history buffer, releasing the mouse cleans up modal timers, and text copying (`ctrl+c`) retains the entire multi-screen selection.",
-        "Test on multiple operating systems (macOS, Linux, Windows) with long multi-page text blocks."
+        "Locate the text selection operator in `source/blender/editors/space_console/console_ops.cc` (e.g., `console_select_set_invoke` / `console_select_set_modal` or equivalent operator).",
+        "Check how the Text Editor (`source/blender/editors/space_text/text_ops.cc`) handles drag-selection and auto-scroll (e.g., setting a timer with `WM_event_add_timer` on modal drag start and removing it on modal release/cancel).",
+        "Extend the console selection modal operator to register a window manager timer (`TIMER` event) while the mouse button is pressed and dragged.",
+        "In the modal event handler, on `TIMER` events, check if the mouse cursor coordinates are above the top or below the bottom edge of `ARegion`.",
+        "If outside the bounds, adjust the console view scroll offset (`sc->scroll`) by a speed factor proportional to the distance from the region edge, clamping within valid scroll limits.",
+        "Update the console selection endpoint using the updated mouse position mapped into the newly scrolled console text lines.",
+        "Tag the region for redraw (`ED_region_tag_redraw(region)`) so that both the scroll change and the extended selection highlight are immediately visible.",
+        "Clean up the timer upon mouse release (`LEFTMOUSE` release) or modal cancel (`ESC`).",
+        "Test text selection across multi-page console output by dragging above and below the visible region, ensuring smooth scrolling and correct buffer copy behavior (Ctrl+C / Cmd+C)."
       ],
       "confidence": "high",
       "first_seen": "2026-10-10T03:50:47.683553+00:00",
-      "processed_at": "2026-10-10T03:50:47.683553+00:00"
+      "processed_at": "2026-10-26T02:52:42.207153+00:00"
     },
     "136889": {
       "repo": "blender/blender",

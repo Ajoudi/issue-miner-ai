@@ -1,6 +1,6 @@
 {
   "repo": "FreeCAD/FreeCAD",
-  "generated_at": "2026-10-25T02:34:23.222754+00:00",
+  "generated_at": "2026-10-26T02:48:02.482954+00:00",
   "issues": {
     "24238": {
       "repo": "FreeCAD/FreeCAD",
@@ -402,6 +402,53 @@
       "confidence": "high",
       "first_seen": "2026-10-08T03:52:56.104019+00:00",
       "processed_at": "2026-10-17T02:21:38.871000+00:00"
+    },
+    "32248": {
+      "repo": "FreeCAD/FreeCAD",
+      "number": 32248,
+      "title": "Sketcher: Double-click selection includes wrong object types and impacts performance",
+      "source_url": "https://github.com/FreeCAD/FreeCAD/issues/32248",
+      "labels": [
+        "Topic: User Interface",
+        "Mod: Sketcher",
+        "Good first issue"
+      ],
+      "reactions": 0,
+      "created_at": "2026-08-29T00:58:56Z",
+      "updated_at": "2026-10-24T10:05:13Z",
+      "need_score": 16.0,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue describes a well-defined bug in the Sketcher workbench regarding double-click connected selection ignoring object types (e.g. solid vs construction/guide lines). While labeled 'Good first issue', modifying path traversal and selection filtering in Sketcher requires understanding the existing selection logic and geometry representation in the codebase.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Double-clicking an edge in Sketcher to select connected geometry traverses across construction and normal geometry boundaries, selecting mixed geometry types.",
+      "root_cause_hypothesis": "The connected geometry search algorithm triggered on double-click traverses coincident vertices/endpoints without checking whether the adjacent geometry shares the same construction mode (normal vs. construction/guide geometry) or compatible geometry attributes.",
+      "suggested_approach": "Update the connected geometry traversal logic in Sketcher to filter adjacent edges based on construction status, ensuring that traversal only continues along geometry sharing the same construction state as the double-clicked initial element (or optionally matching geometry category).",
+      "likely_areas": [
+        "src/Mod/Sketcher/Gui/ViewProviderSketch.cpp",
+        "src/Mod/Sketcher/Gui/ViewProviderSketchGeometryExtension.cpp",
+        "src/Mod/Sketcher/App/SketchObject.cpp",
+        "src/Mod/Sketcher/Gui/CommandSketcherTools.cpp"
+      ],
+      "prerequisites": [
+        "Working FreeCAD development environment with Qt6 and Coin3D support configured.",
+        "Understanding of Sketcher data structures (e.g., GeometryFacade, Part::Geometry, construction geometry flag, and SketchObject constraint topology)."
+      ],
+      "implementation_steps": [
+        "Locate the double-click event handling method in ViewProviderSketch (or the command invoked by it, such as 'select connected').",
+        "Trace the traversal algorithm (e.g., BFS/DFS or topological endpoint adjacency search) that collects connected geometry indices.",
+        "Retrieve the construction status (`isConstruction()`) of the initial double-clicked geometry item.",
+        "Add a condition in the adjacency exploration step to check the construction status of candidate neighbor geometries, stopping traversal or skipping branches that do not match the starting geometry's construction state.",
+        "Verify performance of the traversal on complex sketches with many connected segments to avoid redundant visits or O(N^2) lookups.",
+        "Add or update unit/GUI tests in the Sketcher test suite verifying that double-click / connected selection correctly halts at construction/normal geometry transitions."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-10-26T02:48:02.482887+00:00",
+      "processed_at": "2026-10-26T02:48:02.482887+00:00"
     }
   }
 }
