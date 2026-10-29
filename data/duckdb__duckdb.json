@@ -1,6 +1,6 @@
 {
   "repo": "duckdb/duckdb",
-  "generated_at": "2026-10-28T03:23:33.489705+00:00",
+  "generated_at": "2026-10-29T04:05:38.275482+00:00",
   "issues": {
     "13069": {
       "repo": "duckdb/duckdb",
@@ -332,40 +332,40 @@
       "updated_at": "2026-07-01T15:56:55Z",
       "need_score": 18.4,
       "feasibility": "medium",
-      "feasibility_reason": "The issue provides clear reproduction steps for a specific dependency error during an ALTER TABLE operation when a unique index exists. However, fixing dependency tracking and cascading/dropping dependencies correctly in DuckDB's catalog subsystem requires understanding complex internal catalog structures.",
+      "feasibility_reason": "The issue provides clear reproduction steps for a dependency error during ALTER TABLE operations when a unique index exists. However, fixing dependency checks in DuckDB's catalog/alter system can be complex and require deep knowledge of internal dependency management.",
       "self_contained": true,
       "needs_special_environment": false,
-      "blockers": [],
+      "blockers": [
+        "Requires understanding of DuckDB's catalog dependency tracking mechanism during ALTER TABLE."
+      ],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Executing an ALTER TABLE statement (e.g., ALTER COLUMN TYPE) fails with a 'Dependency Error: Cannot alter entry because there are entries that depend on it' when the table has secondary objects such as indexes, even if those indexes do not reference the altered column.",
-      "root_cause_hypothesis": "DuckDB's catalog dependency manager tracks dependencies at the catalog entry level (table-level) rather than at the column level or with fine-grained dependency filtering. Consequently, when an ALTER operation checks for dependents on the table entry, any dependent entry (such as an index) causes the dependency check to trigger an error, even if the dependent index does not depend on the specific column being modified.",
-      "suggested_approach": "Refine the dependency check during ALTER TABLE operations so that dependent objects (specifically indexes, constraints, and views if applicable) are evaluated against the specific columns affected by the alter operation. If none of the dependent indexes or constraints reference the modified column, the alter operation should be allowed to proceed without raising a dependency conflict.",
+      "problem_summary": "Executing ALTER TABLE to change a column's type or constraints fails with a Dependency Error if any index exists on the table, even if the altered column is not referenced by the index.",
+      "root_cause_hypothesis": "The catalog dependency management subsystem tracks dependencies between database objects at the table level (e.g. index -> table) rather than at the column level. When an ALTER TABLE operation is executed, DuckDB checks if there are dependent catalog entries (such as index entries) on the table and raises a dependency error instead of verifying whether the specific column being altered is involved in any dependent indexes or constraints.",
+      "suggested_approach": "Refine catalog dependency checking during table alterations. Either introduce column-level dependency tracking or enhance the ALTER TABLE validation logic so that dependent objects (like index catalog entries or constraints) inspect their referenced column lists to determine whether the specific column being altered, dropped, or changed actually affects the dependent object.",
       "likely_areas": [
+        "src/catalog/catalog_entry/table_catalog_entry.cpp",
         "src/catalog/dependency_manager.cpp",
-        "src/catalog/catalog_entry/duck_table_entry.cpp",
-        "src/catalog/catalog_set.cpp",
-        "src/include/duckdb/catalog/dependency_manager.hpp",
-        "src/include/duckdb/parser/parsed_data/alter_table_info.hpp",
-        "src/storage/table/column_data.cpp"
+        "src/storage/table/column_data.cpp",
+        "src/execution/operator/schema/physical_alter.cpp",
+        "test/sql/alter/alter_table.test"
       ],
       "prerequisites": [
-        "Understand DuckDB's CatalogEntry hierarchy and DependencyManager architecture.",
-        "Inspect how TableCatalogEntry / DuckTableEntry handles AlterTableInfo (e.g. AlterScalarFunction, AlterTypeInfo, RenameColumnInfo)."
+        "Familiarity with DuckDB's catalog architecture, specifically CatalogEntry, DependencyManager, and dependency types (CatalogSet/DependencyManager).",
+        "Understanding of DuckDB's table alteration pipeline (AlterTableInfo, PhysicalAlter, AlterTableEntry)."
       ],
       "implementation_steps": [
-        "Examine `DependencyManager::AlterObject` and `DuckTableEntry::Alter` to identify where dependent entries are fetched and validated.",
-        "Inspect how `IndexCatalogEntry` and other dependent objects reference table columns (e.g., `column_ids` or parsed expressions in the index).",
-        "Update the dependency validation logic during `AlterTableInfo` (specifically `ALTER_COLUMN_TYPE`, `RENAME_COLUMN`, `DROP_NOT_NULL`, etc.) to inspect dependent objects instead of unconditionally rejecting alteration if dependents exist.",
-        "For dependent `IndexCatalogEntry` objects, verify whether the column being modified (by column index or name) is part of the index. If none of the dependent indexes reference the column, bypass the dependency check or permit the alter.",
-        "Ensure that if an index *does* depend on the modified column, the existing error message or behavior is preserved.",
-        "Verify catalog serialization / WAL replay / rollback handling to ensure that altering table schema with intact indexes preserves consistency across checkpoints and transactions.",
-        "Add regression test cases in `test/sql/catalog/` or `test/sql/alter/` testing altering column types, drop not null, and renames on tables having indexes on unrelated columns."
+        "Inspect the dependency check path triggered during ALTER TABLE in `src/catalog/catalog_entry/table_catalog_entry.cpp` or `src/catalog/dependency_manager.cpp` where `DependencyManager::CheckDropDependencies` / `CheckAlterDependencies` is invoked.",
+        "Examine index entries associated with the table to retrieve the column IDs/names that the index actually depends on.",
+        "Modify the dependency check logic for `AlterTableType::ALTER_COLUMN_TYPE`, `RENAME_COLUMN`, and `DROP_NOT_NULL` to distinguish between dependencies on the whole table structure versus dependencies on specific columns.",
+        "Ensure that if an index depends on the table, it only blocks alterations to columns that form part of the index definition or column expressions.",
+        "Verify that operations affecting storage layout (e.g., column rewrite or row-group alterations) properly maintain index validity and pointers for unaffected columns without invalidating existing index structures.",
+        "Add regression tests in `test/sql/alter/alter_table.test` covering ALTER COLUMN TYPE, DROP NOT NULL, and ADD COLUMN on tables with indexes on unrelated columns, as well as verifying that modifying indexed columns is still prevented or correctly handled."
       ],
-      "confidence": "medium",
+      "confidence": "high",
       "first_seen": "2026-09-15T02:43:39.187777+00:00",
-      "processed_at": "2026-10-15T02:37:13.917426+00:00"
+      "processed_at": "2026-10-29T03:58:26.452762+00:00"
     },
     "15520": {
       "repo": "duckdb/duckdb",
@@ -462,6 +462,49 @@
       "processed_at": "2026-10-08T03:48:07.414952+00:00",
       "resolved": true,
       "resolved_at": "2026-10-14T02:54:17.198291+00:00"
+    },
+    "27790": {
+      "repo": "duckdb/duckdb",
+      "number": 27790,
+      "title": "INTERNAL Error \"Information loss on integer cast\" in Executor::WaitForTask when the monotonic clock steps backwards (2.0.0 regression)",
+      "source_url": "https://github.com/duckdb/duckdb/issues/27790",
+      "labels": [
+        "reproduced"
+      ],
+      "reactions": 3,
+      "created_at": "2026-10-23T16:05:29Z",
+      "updated_at": "2026-10-26T08:01:58Z",
+      "need_score": 13.4,
+      "feasibility": "high",
+      "feasibility_reason": "The issue provides the exact file, lines, and cause of the internal exception (monotonic clock stepping backwards resulting in a negative value passed to NumericCast<idx_t>). A capable developer can easily fix this by clamping negative elapsed durations or using a signed type for wait time calculations.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "under_1h",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Queries intermittently fail with an InternalException due to an out-of-range integer cast in Executor::WaitForTask when the monotonic clock steps backward.",
+      "root_cause_hypothesis": "Executor::WaitForTask uses TimePoint::ElapsedMicros to calculate thread wait/block durations and converts the result to unsigned idx_t using NumericCast. On some virtualized systems with unstable TSC across vCPUs, steady_clock readings can step backward slightly, causing ElapsedMicros to return a negative value which triggers an exception in NumericCast<idx_t>.",
+      "suggested_approach": "Clamp elapsed microsecond calculations to zero using std::max<int64_t>(0, ...) before casting to idx_t, or ensure elapsed time calculations gracefully handle negative durations.",
+      "likely_areas": [
+        "src/parallel/executor.cpp",
+        "src/include/duckdb/common/types/time.hpp",
+        "src/include/duckdb/parallel/executor.hpp"
+      ],
+      "prerequisites": [
+        "C++11/C++17 build environment to compile DuckDB from source",
+        "Understanding of DuckDB's TimePoint utilities and NumericCast safety mechanisms"
+      ],
+      "implementation_steps": [
+        "Inspect src/parallel/executor.cpp around Executor::WaitForTask to locate all occurrences of NumericCast<idx_t>(TimePoint::ElapsedMicros(...)).",
+        "Wrap or clamp the result of TimePoint::ElapsedMicros with std::max<int64_t>(0, ...) prior to passing it to NumericCast<idx_t> (or check whether a helper function in TimePoint should safely return non-negative durations).",
+        "Search for other call sites in the repository where TimePoint::ElapsedMicros, ElapsedNanos, or elapsed time differences are cast to idx_t or unsigned integer types to prevent similar clock skew failures.",
+        "Add a unit test simulating negative time differences or verifying that negative durations safely clamp to 0 instead of throwing an InternalException.",
+        "Run DuckDB's test suite to ensure all executor and parallel processing tests pass."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-10-29T04:05:38.275418+00:00",
+      "processed_at": "2026-10-29T04:05:38.275418+00:00"
     }
   }
 }

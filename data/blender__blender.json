@@ -1,6 +1,6 @@
 {
   "repo": "blender/blender",
-  "generated_at": "2026-10-28T03:26:28.215876+00:00",
+  "generated_at": "2026-10-29T04:11:45.071746+00:00",
   "issues": {
     "160373": {
       "repo": "blender/blender",
@@ -208,6 +208,56 @@
       "confidence": "medium",
       "first_seen": "2026-10-10T03:51:21.181940+00:00",
       "processed_at": "2026-10-10T03:51:21.181940+00:00"
+    },
+    "138527": {
+      "repo": "blender/blender",
+      "number": 138527,
+      "title": "Industry-compatible keymap error in Grease Pencil object's edit mode",
+      "source_url": "https://projects.blender.org/blender/blender/issues/138527",
+      "labels": [
+        "Meta/Good First Issue",
+        "Module/Grease Pencil",
+        "Severity/Normal",
+        "Status/Confirmed",
+        "Type/Bug"
+      ],
+      "reactions": 0,
+      "created_at": "2025-05-07T03:40:42+02:00",
+      "updated_at": "2026-10-29T01:30:38+01:00",
+      "need_score": 16.0,
+      "feasibility": "medium",
+      "feasibility_reason": "The issue involves keymap configurations specifically for the new Grease Pencil architecture introduced or changed recently in Blender 4.3/4.4. While reproducing steps are clear, finding the exact keymap conflict or context mismatch in the industry-compatible keymap configuration requires navigating Blender's internal keymap operator definitions and tool systems.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [
+        "Familiarity with Blender's keymap system and the specific changes made to Grease Pencil in Blender 4.3+"
+      ],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "In Blender 4.3+, using the Industry Compatible keymap with Grease Pencil in Edit Mode assigns default Blender bindings (such as W opening a context menu) instead of standard Industry Compatible bindings (W for Move, E for Rotate, R for Scale).",
+      "root_cause_hypothesis": "The Grease Pencil architecture rewrite (Grease Pencil v3) in Blender 4.3 introduced new or updated keymap spaces (e.g., Grease Pencil Edit Mode / Sculpt Mode keymaps), but the Industry Compatible keymap definition in scripts/presets/keyconfig/keymap_data/industry_compatible_data.py was not updated to register transform tool bindings (W/E/R) for the new Grease Pencil edit mode.",
+      "suggested_approach": "Update the Industry Compatible keymap definition file to define keymap entries for Grease Pencil edit mode and related modes. Ensure standard transform tool shortcuts (W for wm.tool_set_by_id with builtin.move, E for builtin.rotate, R for builtin.scale) match the behavior of standard Mesh/Curve edit modes in the Industry Compatible configuration.",
+      "likely_areas": [
+        "release/scripts/presets/keyconfig/keymap_data/industry_compatible_data.py",
+        "release/scripts/presets/keyconfig/keymap_data/blender_default.py"
+      ],
+      "prerequisites": [
+        "Working local Blender development build or script environment",
+        "Understanding of Blender's keyconfig definitions and how wm.tool_set_by_id operates",
+        "Familiarity with Grease Pencil edit mode tool identifiers in Blender 4.3+"
+      ],
+      "implementation_steps": [
+        "Inspect release/scripts/presets/keyconfig/keymap_data/industry_compatible_data.py to identify how 3D View Edit Mode transform tool shortcuts (W, E, R) are mapped for other object types (e.g., Mesh, Curve).",
+        "Check how Grease Pencil Edit Mode and Sculpt Mode keymaps are defined in blender_default.py for Blender 4.3+ (e.g., 'Grease Pencil Edit Mode' or 'Grease Pencil' keymap categories).",
+        "In industry_compatible_data.py, add or update the keymap configuration for Grease Pencil Edit Mode to map 'W', 'E', and 'R' keys with 'PRESS' to 'wm.tool_set_by_id' with names 'builtin.move', 'builtin.rotate', and 'builtin.scale' respectively.",
+        "Verify whether the context menu shortcut mapped to 'W' in Grease Pencil Edit Mode can be remapped to right-click or removed in the Industry Compatible configuration.",
+        "If applicable, inspect sculpt mode brush settings in industry_compatible_data.py to verify and map Ctrl-modifier behaviors for brush inversion / eraser switching.",
+        "Launch Blender, activate the Industry Compatible keymap under Preferences > Keymap, create a Grease Pencil object, switch to Edit Mode, and verify that pressing W, E, and R selects Move, Rotate, and Scale tools respectively without triggering context menus."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-10-29T04:11:45.071681+00:00",
+      "processed_at": "2026-10-29T04:11:45.071681+00:00"
     }
   }
 }
