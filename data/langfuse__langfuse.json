@@ -1,6 +1,6 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-10-29T03:47:44.165836+00:00",
+  "generated_at": "2026-10-30T03:51:47.067332+00:00",
   "issues": {
     "15280": {
       "repo": "langfuse/langfuse",
@@ -429,6 +429,55 @@
       "confidence": "high",
       "first_seen": "2026-10-19T02:36:30.922434+00:00",
       "processed_at": "2026-10-20T02:50:48.949868+00:00"
+    },
+    "19457": {
+      "repo": "langfuse/langfuse",
+      "number": 19457,
+      "title": "Document current GenAI input and output attributes",
+      "source_url": "https://github.com/langfuse/langfuse/issues/19457",
+      "labels": [
+        "docs",
+        "improvement",
+        "documentation",
+        "feat-otel"
+      ],
+      "reactions": 1,
+      "created_at": "2026-10-29T12:38:18Z",
+      "updated_at": "2026-10-29T12:59:36Z",
+      "need_score": 5.8,
+      "feasibility": "high",
+      "feasibility_reason": "The issue is a straightforward documentation update to add new GenAI input/output attribute mappings and update examples in the documentation files.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "under_1h",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "The OpenTelemetry attribute mapping documentation and Spring AI integration guide in Langfuse still present deprecated OpenTelemetry GenAI attributes (gen_ai.prompt and gen_ai.completion) instead of documenting the current gen_ai.input.messages and gen_ai.output.messages attributes.",
+      "root_cause_hypothesis": "Following PR #8813 which implemented ingestion support for gen_ai.input.messages and gen_ai.output.messages, the corresponding documentation pages (OTel mapping table and Spring AI integration guide) were not updated to reflect the new standard OpenTelemetry semantic conventions.",
+      "suggested_approach": "Update the documentation files for OpenTelemetry integration and Spring AI framework guide: add gen_ai.input.messages and gen_ai.output.messages to the attribute mapping tables, mark gen_ai.prompt and gen_ai.completion as legacy/deprecated, explain the expected payload structure and precedence, and update code snippets in the Spring AI docs.",
+      "likely_areas": [
+        "pages/docs/integrations/native/opentelemetry.mdx",
+        "pages/docs/integrations/frameworks/spring-ai.mdx",
+        "web/src/pages/integrations/native/opentelemetry.mdx",
+        "web/src/pages/integrations/frameworks/spring-ai.mdx"
+      ],
+      "prerequisites": [
+        "Review PR #8813 and issue #8840 to verify exact attribute naming, expected JSON formats, and ingestion parsing behavior for gen_ai.input.messages and gen_ai.output.messages.",
+        "Review issue #17963 regarding attribute evaluation precedence when both legacy and new attributes are present on an OpenTelemetry span."
+      ],
+      "implementation_steps": [
+        "Locate the OpenTelemetry native integration document (e.g., under pages/docs/integrations/native/opentelemetry.mdx or similar path in the docs repo).",
+        "Update the OpenTelemetry attribute mapping table to include gen_ai.input.messages mapping to observation input and gen_ai.output.messages mapping to observation output.",
+        "Annotate gen_ai.prompt and gen_ai.completion in the table and text as legacy/deprecated attributes retained for backwards compatibility.",
+        "Document the expected schema format for gen_ai.input.messages and gen_ai.output.messages (e.g. JSON-serialized array of message objects), note precedence rules between new and legacy attributes, and reference the known precedence issue if applicable.",
+        "Locate the Spring AI integration guide (e.g., under pages/docs/integrations/frameworks/spring-ai.mdx).",
+        "Update code snippets and configurations in the Spring AI guide to emit gen_ai.input.messages and gen_ai.output.messages with compliant JSON payloads instead of gen_ai.prompt/completion.",
+        "Run doc linters/tests or preview the docs locally to verify markdown rendering, links, and formatting."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-10-30T03:51:47.067270+00:00",
+      "processed_at": "2026-10-30T03:51:47.067270+00:00"
     }
   }
 }

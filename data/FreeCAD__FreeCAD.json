@@ -1,6 +1,6 @@
 {
   "repo": "FreeCAD/FreeCAD",
-  "generated_at": "2026-10-29T04:06:53.657264+00:00",
+  "generated_at": "2026-10-30T03:56:48.174415+00:00",
   "issues": {
     "24238": {
       "repo": "FreeCAD/FreeCAD",
@@ -18,38 +18,38 @@
       "updated_at": "2026-05-06T11:04:59Z",
       "need_score": 17.8,
       "feasibility": "medium",
-      "feasibility_reason": "The issue is confirmed and described with a sample file and screenshots, making it reproducible. However, debugging geometric trim algorithms in FreeCAD's Sketcher workbench involving external geometry (reference geometry) requires understanding OCC and Sketcher intersection logic.",
+      "feasibility_reason": "The issue describes a specific bug in the FreeCAD Sketcher workbench regarding the trim tool interacting with external geometry and circles. While it is confirmed and has a sample file, debugging geometric intersection and trimming logic requires diving into the Sketcher's OCC-based geometry handling algorithms without prior codebase familiarity, making it moderately challenging.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "Sketcher's trim tool removes an entire circle instead of cutting it at intersections with external geometry lines.",
-      "root_cause_hypothesis": "The intersection calculation logic in the Sketcher trim command only considers normal/internal sketch geometry (positive geometry indices) and ignores or skips external geometry elements (stored separately or indexed with negative IDs), causing the trim algorithm to detect zero intersection points and delete the entire circle.",
-      "suggested_approach": "Include external geometry curves when finding intersections for the curve being trimmed, ensuring intersection points can be computed with projected external lines/curves while ensuring the external geometry itself remains unmodified.",
+      "problem_summary": "In FreeCAD Sketcher, using the Trim tool on a sketch circle intersecting an external geometry reference fails to cut the circle at the intersection points and instead deletes the entire circle.",
+      "root_cause_hypothesis": "The Trim tool's intersection computation gathers candidate intersecting curves only from regular (internal) sketch geometries, ignoring external geometries (or filtering out negative geometry IDs), so no intersection points are found between the circle and the external geometry line, causing closed curves like circles to be deleted.",
+      "suggested_approach": "Include external geometries in the intersection calculation for the geometry being trimmed. Ensure external geometries can act as cutting edges (intersection providers) without allowing them to be modified or trimmed themselves.",
       "likely_areas": [
         "src/Mod/Sketcher/App/SketchObject.cpp",
-        "src/Mod/Sketcher/App/SketchGeometryExtension.cpp",
-        "src/Mod/Sketcher/Gui/CommandSketcherTools.cpp",
-        "src/Mod/Sketcher/App/SketchAnalysis.cpp"
+        "src/Mod/Sketcher/Gui/EditModeTrimming.cpp",
+        "src/Mod/Sketcher/Gui/DrawSketchHandlerTrimming.cpp",
+        "src/Mod/Sketcher/App/GeometryFacade.cpp"
       ],
       "prerequisites": [
-        "Local FreeCAD build environment with Sketcher module enabled",
-        "Understanding of SketchObject internal vs. external geometry representations and GeoEnum indexing"
+        "Build FreeCAD from source with Sketcher module enabled",
+        "Sample file provided in the issue (trim_issue_of_the_day.FCStd) to reproduce the problem"
       ],
       "implementation_steps": [
-        "Inspect the trim tool implementation (search for `trim` methods in `SketchObject` and `CommandSketcherTools`) to locate where intersection points with candidate cutting geometries are computed.",
-        "Examine how candidate intersecting curves are collected: determine whether the iteration is restricted to `sketch->getGeometry()` without considering `sketch->getExternalGeometry()` / negative indices.",
-        "Update the intersection gathering logic to also include external geometries (or projected curves of external geometry) as potential cutting entities.",
-        "Ensure intersection points against bounded external geometry (e.g., line segments) properly check parameter bounds / tolerance.",
-        "Handle constraint creation or endpoint positioning when splitting a circle into an arc so that point-on-object or coincidence constraints with the external geometry work properly if auto-constraints are enabled.",
-        "Verify that trimming an external curve directly is still disallowed or prevented, and only normal geometries are modified/trimmed.",
-        "Add automated or manual regression tests verifying trimming circles, arcs, and lines against external geometry lines and curves."
+        "Reproduce the bug using the sample file by attempting to trim a circle segment that is crossed by an external geometry edge.",
+        "Inspect the Trim tool implementation (specifically where intersection points are evaluated along the curve to be trimmed, such as in `SketchObject::trim` or `EditModeTrimming`).",
+        "Verify how geometry indices are iterated when collecting intersections; confirm whether `ExternalGeometry` (or geometry IDs < 0) are excluded from the intersection search.",
+        "Update the intersection detection logic to also evaluate intersections against valid external geometry curves projected on the sketch plane.",
+        "Ensure that when trimming creates new geometry endpoints (converting the circle into an arc), appropriate PointOnObject or coincident constraints can be generated with the external geometry if auto-constrain is enabled, and ensure that the external geometry itself is protected from being trimmed or modified.",
+        "Verify edge cases: multiple intersections with external lines/curves, external curves intersecting regular lines, and closed circles with 1 vs 2 intersection points.",
+        "Add automated regression tests in the Sketcher test suite verifying trimming against external geometry."
       ],
       "confidence": "high",
       "first_seen": "2026-08-19T09:25:03.639175+00:00",
-      "processed_at": "2026-10-08T03:53:29.807317+00:00"
+      "processed_at": "2026-10-30T03:56:48.174354+00:00"
     },
     "27762": {
       "repo": "FreeCAD/FreeCAD",
