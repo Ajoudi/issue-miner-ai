@@ -1,6 +1,6 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-10-30T03:51:47.067332+00:00",
+  "generated_at": "2026-10-31T03:32:47.243186+00:00",
   "issues": {
     "15280": {
       "repo": "langfuse/langfuse",
@@ -478,6 +478,58 @@
       "confidence": "high",
       "first_seen": "2026-10-30T03:51:47.067270+00:00",
       "processed_at": "2026-10-30T03:51:47.067270+00:00"
+    },
+    "19522": {
+      "repo": "langfuse/langfuse",
+      "number": 19522,
+      "title": "[Security] langfuse:4.72.0 and langfuse-worker:4.72.0 – Critical Node.js CVE (CISA KEV), HIGH OS and dependency vulnerabilities",
+      "source_url": "https://github.com/langfuse/langfuse/issues/19522",
+      "labels": [
+        "bug",
+        "security",
+        "infra"
+      ],
+      "reactions": 1,
+      "created_at": "2026-10-30T18:39:54Z",
+      "updated_at": "2026-10-30T18:40:29Z",
+      "need_score": 5.8,
+      "feasibility": "high",
+      "feasibility_reason": "The issue is a standard container base image / Node.js version bump vulnerability report, requiring an update to the Node.js version and base image tags in the Dockerfiles.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "under_1h",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Security container scans on Langfuse v4.72.0 web and worker container images flagged critical Node.js runtime CVEs (including one listed in CISA KEV), high OS package vulnerabilities, and vulnerable npm dependencies.",
+      "root_cause_hypothesis": "The container base images and installed Node.js runtime version (24.21.0) are outdated and unpatched, base OS packages in UBI 9 need security updates, and certain npm dependencies in the monorepo (such as uuid and @ai-sdk/provider-utils) reference vulnerable versions.",
+      "suggested_approach": "Update base container images and Node.js installation to patched versions (at least Node.js 24.22.1 or latest LTS), trigger package updates (e.g. microdnf upgrade) during image build, and bump affected npm dependencies in package manifests and lockfiles.",
+      "likely_areas": [
+        "Dockerfile",
+        "web/Dockerfile",
+        "worker/Dockerfile",
+        "package.json",
+        "pnpm-lock.yaml",
+        "worker/package.json",
+        "web/package.json"
+      ],
+      "prerequisites": [
+        "Access to a container scanning tool (e.g., Trivy, Grype, or Wiz CLI) to verify remediation locally or in CI",
+        "Local Docker environment to build and inspect the web and worker images",
+        "pnpm installed matching monorepo requirements"
+      ],
+      "implementation_steps": [
+        "Update Dockerfiles for Langfuse web and worker to use updated base images or specify Node.js runtime version >= 24.22.1.",
+        "Add or update OS package upgrade commands (such as microdnf update / upgrade) in the builder and runner container stages to resolve OS-level package CVEs.",
+        "Upgrade uuid in worker/package.json and root workspace to >= 11.1.1, ensuring API compatibility.",
+        "Upgrade @ai-sdk/provider-utils and associated Vercel AI SDK dependencies in web and worker to the latest non-vulnerable versions.",
+        "Run pnpm install to regenerate pnpm-lock.yaml with updated dependency resolution.",
+        "Build both container images locally and run a vulnerability scan (Trivy or equivalent) to confirm all Critical and High CVEs are resolved.",
+        "Run unit, integration, and e2e test suites to ensure dependency and runtime bumps did not introduce breaking changes or regressions."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-10-31T03:32:47.243121+00:00",
+      "processed_at": "2026-10-31T03:32:47.243121+00:00"
     }
   }
 }
