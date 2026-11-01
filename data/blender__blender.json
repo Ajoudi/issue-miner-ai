@@ -1,6 +1,6 @@
 {
   "repo": "blender/blender",
-  "generated_at": "2026-10-31T03:52:24.237880+00:00",
+  "generated_at": "2026-11-01T03:41:37.559581+00:00",
   "issues": {
     "160373": {
       "repo": "blender/blender",
@@ -258,6 +258,56 @@
       "confidence": "high",
       "first_seen": "2026-10-29T04:11:45.071681+00:00",
       "processed_at": "2026-10-29T04:11:45.071681+00:00"
+    },
+    "155765": {
+      "repo": "blender/blender",
+      "number": 155765,
+      "title": "Grease Pencil: Update defaults in 2D Animation and Storyboarding template",
+      "source_url": "https://projects.blender.org/blender/blender/issues/155765",
+      "labels": [
+        "Meta/Good First Issue",
+        "Type/To Do"
+      ],
+      "reactions": 3,
+      "created_at": "2026-03-17T12:03:47+01:00",
+      "updated_at": "2026-10-30T09:25:15+01:00",
+      "need_score": 19.4,
+      "feasibility": "high",
+      "feasibility_reason": "The issue provides a clear checklist of specific UI and default setting changes requested by the Grease Pencil module team, with several items already linked to existing commits or pull requests, making the remaining tasks straightforward configuration updates.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Update default settings and configurations for the 2D Animation and Storyboarding application templates in Blender to improve default user experience with Grease Pencil.",
+      "root_cause_hypothesis": "The 2D Animation and Storyboarding template files (.blend startup files for these application templates) contain outdated defaults from previous versions that do not match the current workflow preferences agreed upon by the Grease Pencil module team.",
+      "suggested_approach": "Open and edit the startup .blend files used by the 2D Animation and Storyboarding application templates, apply the remaining checklist changes (lasso selection in edit mode, viewport world color to pure white, disable Grease Pencil Use Lights on default objects, set properties editor to object data properties, and open the 3D viewport sidebar/N-panel to Tool tab), and save the updated template .blend files or update corresponding template generation scripts.",
+      "likely_areas": [
+        "release/datafiles/templates/2D_Animation/startup.blend",
+        "release/datafiles/templates/Storyboarding/startup.blend",
+        "release/scripts/startup/bl_app_templates_system/",
+        "source/blender/blenkernel/intern/brush.cc"
+      ],
+      "prerequisites": [
+        "Local Blender development build setup capable of modifying template assets or startup .blend files",
+        "Familiarity with Blender's application template structure and Grease Pencil workspace conventions"
+      ],
+      "implementation_steps": [
+        "Locate the template files in the repository under release/datafiles/templates/ for '2D_Animation' and 'Storyboarding'.",
+        "Open the 2D Animation startup .blend file in Blender.",
+        "Set the active selection tool in Edit Mode to 'Lasso' (check workspace tool settings for Grease Pencil edit mode).",
+        "Navigate to World Properties > Viewport Display > Color and set it to pure white (RGB 1.0, 1.0, 1.0).",
+        "Select the default Grease Pencil object, go to Object Properties > Visibility, and uncheck 'Grease Pencil Use Lights'.",
+        "In the Properties Editor, switch the active tab from Tool Settings to Object Data Properties (grease pencil icon) showing layers.",
+        "In the 3D Viewport, toggle open the sidebar (N-panel) and set the active tab to 'Tool' displaying brush colors and settings.",
+        "Verify if the same changes apply to the Storyboarding template startup file and repeat as needed.",
+        "Save the updated template .blend files cleanly without unnecessary user preferences or unneeded datablocks.",
+        "Launch Blender with the updated templates from 'File > New > 2D Animation' and 'File > New > Storyboarding' to verify all defaults match the checklist."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-11-01T03:41:37.559528+00:00",
+      "processed_at": "2026-11-01T03:41:37.559528+00:00"
     }
   }
 }

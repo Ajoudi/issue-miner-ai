@@ -1,6 +1,6 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-10-31T03:32:47.243186+00:00",
+  "generated_at": "2026-11-01T03:31:38.735258+00:00",
   "issues": {
     "15280": {
       "repo": "langfuse/langfuse",
@@ -530,6 +530,97 @@
       "confidence": "high",
       "first_seen": "2026-10-31T03:32:47.243121+00:00",
       "processed_at": "2026-10-31T03:32:47.243121+00:00"
+    },
+    "19529": {
+      "repo": "langfuse/langfuse",
+      "number": 19529,
+      "title": "bug: 4.72.0 images are back on Node.js 24.21.0 (regression of #19177)",
+      "source_url": "https://github.com/langfuse/langfuse/issues/19529",
+      "labels": [
+        "bug",
+        "security",
+        "infra"
+      ],
+      "reactions": 1,
+      "created_at": "2026-10-31T07:59:43Z",
+      "updated_at": "2026-10-31T08:00:54Z",
+      "need_score": 7.8,
+      "feasibility": "high",
+      "feasibility_reason": "This is a straightforward infrastructure/Dockerfile version regression where the base image Node version was accidentally reverted. Fixing it involves updating the Node.js version in the Dockerfile configuration to match the expected secure version.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "under_1h",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Docker images for release 4.72.0 (langfuse and langfuse-worker) regressed to Node.js 24.21.0 instead of using Node.js 24.22.1 (or newer), leaving known vulnerabilities unpatched.",
+      "root_cause_hypothesis": "A recent commit or merge conflict resolution inadvertently reverted the base Docker image version tag or build argument specifying the Node.js version in Dockerfiles or GitHub Actions release workflows.",
+      "suggested_approach": "Inspect the Dockerfiles and CI/CD workflow configurations responsible for building the container images, identify where Node.js 24.21.0 is specified, and update it back to Node.js 24.22.1 or newer.",
+      "likely_areas": [
+        "Dockerfile",
+        "docker/Dockerfile",
+        "web/Dockerfile",
+        "worker/Dockerfile",
+        ".github/workflows/build-and-push.yml",
+        ".github/workflows/release.yml"
+      ],
+      "prerequisites": [
+        "Access to Docker daemon for local image builds and verification",
+        "Git history comparison between tags v4.70.1 and v4.72.0 to locate the regression"
+      ],
+      "implementation_steps": [
+        "Review git diff between tag v4.70.1 and v4.72.0 specifically filtering for Dockerfiles and `.github/workflows/` files to find where Node.js version or image tag changed.",
+        "Update all relevant Dockerfiles (Langfuse web and worker services) to reference `node:24.22.1` or the latest appropriate Node 24 patch release (e.g., `node:24.22.1-alpine` or Debian variant).",
+        "Check `.nvmrc`, `package.json` engines field, or workflow files for any hardcoded Node versions and align them with Node.js 24.22.1+.",
+        "Build the target Docker images locally using `docker build`.",
+        "Run `docker run --rm --entrypoint node <built-image-tag> -p process.versions` across both amd64 and arm64 architectures if possible to verify `node` reports 24.22.1 or newer.",
+        "Submit a pull request with the fix and verify CI image build checks pass."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-11-01T03:29:21.218673+00:00",
+      "processed_at": "2026-11-01T03:29:21.218673+00:00"
+    },
+    "19527": {
+      "repo": "langfuse/langfuse",
+      "number": 19527,
+      "title": "bug(scripts): pnpm install crashes on Windows when the checkout path contains non-ASCII characters (agents:sync ENOENT)",
+      "source_url": "https://github.com/langfuse/langfuse/issues/19527",
+      "labels": [
+        "bug",
+        "feat-agents"
+      ],
+      "reactions": 1,
+      "created_at": "2026-10-31T07:40:44Z",
+      "updated_at": "2026-10-31T07:41:12Z",
+      "need_score": 7.8,
+      "feasibility": "high",
+      "feasibility_reason": "The issue provides an exceptionally clear bug description, points directly to the exact line of code causing the problem in a specific script file, explains the root cause (misuse of URL.pathname vs fileURLToPath), and even provides the exact suggested fix.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "under_1h",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "Running `pnpm install` or executing `scripts/agents/sync-agent-shims.mjs` on Windows fails with an ENOENT error if the repository is located in a path with non-ASCII characters or standard Windows drive letters.",
+      "root_cause_hypothesis": "The script derives `repoRoot` using `resolve(new URL(\"../..\", import.meta.url).pathname)`. On Windows and with non-ASCII paths, `URL.pathname` leaves a leading slash before the drive letter (`/D:/...`) and percent-encodes non-ASCII characters. Passing this to `path.resolve` results in an invalid, mangled path with duplicated drive letters and unescaped percent sequences.",
+      "suggested_approach": "Replace the manual URL pathname extraction with Node's standard `fileURLToPath` from the `node:url` module, which correctly resolves drive letters and decodes percent-encoded characters across all platforms.",
+      "likely_areas": [
+        "scripts/agents/sync-agent-shims.mjs",
+        "scripts/"
+      ],
+      "prerequisites": [
+        "Node.js environment (ideally tested on Windows or simulated with URL paths containing percent encoding/drive letters)",
+        "pnpm installed"
+      ],
+      "implementation_steps": [
+        "Import `fileURLToPath` from `node:url` in `scripts/agents/sync-agent-shims.mjs`.",
+        "Update the definition of `repoRoot` to use `resolve(fileURLToPath(new URL(\"../..\", import.meta.url)))` instead of accessing `.pathname`.",
+        "Check other scripts in `scripts/` or throughout the codebase for similar patterns where `new URL(...).pathname` is passed to `path.resolve()` instead of using `fileURLToPath`.",
+        "Test the script by executing `node scripts/agents/sync-agent-shims.mjs --check` from a directory path containing non-ASCII characters and verify it resolves files without ENOENT errors."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-11-01T03:31:38.735196+00:00",
+      "processed_at": "2026-11-01T03:31:38.735196+00:00"
     }
   }
 }
