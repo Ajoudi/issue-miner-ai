@@ -1,6 +1,6 @@
 {
   "repo": "FreeCAD/FreeCAD",
-  "generated_at": "2026-11-01T03:36:15.343976+00:00",
+  "generated_at": "2026-11-02T03:54:55.296788+00:00",
   "issues": {
     "24238": {
       "repo": "FreeCAD/FreeCAD",
@@ -370,38 +370,41 @@
       "updated_at": "2026-10-16T05:36:54Z",
       "need_score": 21.4,
       "feasibility": "medium",
-      "feasibility_reason": "The issue requests UX improvements and standard list interactions (Ctrl+A, Ctrl+Click, Shift+Click) as well as continuous selection mode for PartDesign tools like Additive/Subtractive Pipe. While clear in intent, it touches multiple UI task panels and list widgets in the PartDesign workbench, requiring familiarization with Qt item selection models and FreeCAD task panel implementations.",
+      "feasibility_reason": "The issue requests UX enhancements for list interactions (continuous selection mode like fillet/chamfer, keyboard shortcuts like Ctrl+A, Ctrl+Click, Shift+Click) across multiple PartDesign features. While well-defined, it involves diving into specific Qt task panels and UI implementations for PartDesign features which can be spread across multiple files.",
       "self_contained": true,
       "needs_special_environment": false,
       "blockers": [],
       "estimated_effort": "half_day",
       "worth_solving": true,
       "flagged_injection": false,
-      "problem_summary": "PartDesign Pipe and Loft task dialogs require re-clicking 'Add Edge' or 'Add Section' for each individual item, and the list widgets lack standard multi-selection capabilities (Ctrl+Click, Shift+Click, Ctrl+A).",
-      "root_cause_hypothesis": "TaskPipeParameters and related PartDesign task panels deactivate selection mode after picking a single element instead of keeping 'Add' mode toggled until explicitly stopped (unlike TaskFillet/TaskChamfer/TaskDressUp). Furthermore, the QListWidget or QTreeWidget controls use default single-selection modes (QAbstractItemView::SingleSelection) and do not handle standard keyboard shortcuts for list manipulation.",
-      "suggested_approach": "Update TaskPipeParameters (and TaskLoftParameters / auxiliary profile selectors) to enable continuous selection when the 'Add' or 'Remove' buttons are toggled, matching the behavior in TaskDressUp/TaskFillet. Set selection mode to QAbstractItemView::ExtendedSelection on the relevant QListWidget/QTreeWidget views and implement standard shortcuts (such as Ctrl+A to select all and Delete to remove selected items).",
+      "problem_summary": "In PartDesign Pipe and Loft task panels, adding multiple edges/profiles requires repeatedly clicking the 'Add' button for each item, and the list widgets do not support standard multi-selection shortcuts (Ctrl+Click, Shift+Click, Ctrl+A).",
+      "root_cause_hypothesis": "TaskPipeParameters and related PartDesign task panels disable or reset selection mode after a single 3D selection rather than keeping the 'Add' mode active (checkable button mode like in DressUp/Fillet), and their list/tree widgets use default single-selection mode (QAbstractItemView::SingleSelection) instead of ExtendedSelection.",
+      "suggested_approach": "Update the Add/Remove buttons in TaskPipeParameters (and TaskLoftParameters/TaskPipeOrientation as applicable) to behave as toggle/checkable buttons or persist the selection mode until toggled off, matching the behavior of Fillet/Chamfer task dialogs. Additionally, configure the list/tree widgets to use QAbstractItemView::ExtendedSelection and handle multi-item removal/shortcuts.",
       "likely_areas": [
         "src/Mod/PartDesign/Gui/TaskPipeParameters.cpp",
         "src/Mod/PartDesign/Gui/TaskPipeParameters.h",
         "src/Mod/PartDesign/Gui/TaskPipeOrientation.cpp",
         "src/Mod/PartDesign/Gui/TaskLoftParameters.cpp",
+        "src/Mod/PartDesign/Gui/TaskLoftParameters.h",
         "src/Mod/PartDesign/Gui/TaskDressUpParameters.cpp"
       ],
       "prerequisites": [
-        "Build FreeCAD from source with PartDesign module enabled.",
-        "Inspect how TaskDressUpParameters or TaskFilletParameters handles interactive continuous selection and button toggle states via Gui::SelectionObserver."
+        "Working FreeCAD development environment capable of building PartDesign and GUI modules with Qt6/Qt5.",
+        "Familiarity with Qt QTreeWidget/QListWidget selection modes and FreeCAD Gui::SelectionObserver mechanism."
       ],
       "implementation_steps": [
-        "Inspect TaskPipeParameters.cpp, TaskPipeOrientation.cpp, and TaskLoftParameters.cpp to see how 'Add' and 'Remove' buttons initiate Gui::SelectionFilter and handle selection callbacks.",
-        "Refactor the 'Add Edge' / 'Add Section' button logic so that the button is checkable (toggled) and continuous selection remains active until the user clicks the button again or closes the task dialog, similar to TaskDressUp.",
-        "Update the QListWidget / QTreeWidget instances (for spine edges, auxiliary paths, and profile sections) to use QAbstractItemView::ExtendedSelection (or MultiSelection) so users can use Ctrl+Click, Shift+Click, and Ctrl+A.",
-        "Enable deletion of multiple selected items at once from the lists when clicking 'Remove' or pressing the Delete / Backspace key.",
-        "Ensure 3D viewport highlight / preselection stays synchronized with the selected items in the lists when multiple items are selected.",
-        "Test Additive and Subtractive Pipe workflows with single and multi-edge selection, auxiliary profiles, and multiple section additions to verify consistent behavior and prevent regressions."
+        "Examine TaskDressUpParameters and TaskFillet to identify how continuous 3D selection is managed (checkable Add button and Gui::SelectionObserver callbacks).",
+        "Inspect TaskPipeParameters and TaskPipeOrientation: set the Add Edge / Add Profile buttons to checkable (setCheckable(true)) so users stay in 'Add' mode across multiple 3D clicks until toggled off.",
+        "Ensure Gui::SelectionObserver or SelectionFilter handles sequential picks while in 'Add' mode without clearing or disabling the active tool button after the first picked item.",
+        "Update the list/tree widgets (e.g., edge list, profile list, auxiliary curve list) to use setSelectionMode(QAbstractItemView::ExtendedSelection).",
+        "Update the 'Remove' button and key event handlers (e.g., Delete key) for the lists to support deleting multiple selected items simultaneously.",
+        "Review TaskLoftParameters for similar button and selection widget patterns, applying identical UX improvements for section selection.",
+        "Verify that Ctrl+A, Shift+Click, and Ctrl+Click work as expected within the list views and that continuous 3D view picking correctly appends items to the active feature.",
+        "Test edge cases such as cancelling the task dialog, switching modes, or picking invalid entities to ensure selections are properly discarded or handled gracefully."
       ],
       "confidence": "high",
       "first_seen": "2026-10-08T03:52:56.104019+00:00",
-      "processed_at": "2026-10-17T02:21:38.871000+00:00"
+      "processed_at": "2026-11-02T03:54:55.296700+00:00"
     },
     "32248": {
       "repo": "FreeCAD/FreeCAD",

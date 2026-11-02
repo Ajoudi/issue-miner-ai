@@ -1,6 +1,6 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-11-01T03:31:38.735258+00:00",
+  "generated_at": "2026-11-02T03:40:44.484305+00:00",
   "issues": {
     "15280": {
       "repo": "langfuse/langfuse",
@@ -578,7 +578,9 @@
       ],
       "confidence": "high",
       "first_seen": "2026-11-01T03:29:21.218673+00:00",
-      "processed_at": "2026-11-01T03:29:21.218673+00:00"
+      "processed_at": "2026-11-01T03:29:21.218673+00:00",
+      "resolved": true,
+      "resolved_at": "2026-11-02T03:36:57.391157+00:00"
     },
     "19527": {
       "repo": "langfuse/langfuse",
@@ -621,6 +623,95 @@
       "confidence": "high",
       "first_seen": "2026-11-01T03:31:38.735196+00:00",
       "processed_at": "2026-11-01T03:31:38.735196+00:00"
+    },
+    "19545": {
+      "repo": "langfuse/langfuse",
+      "number": 19545,
+      "title": "bug: Codex skill tags match paths in commands that do not invoke a skill",
+      "source_url": "https://github.com/langfuse/langfuse/issues/19545",
+      "labels": [
+        "bug",
+        "Agent Skills",
+        "feat-skill-management"
+      ],
+      "reactions": 1,
+      "created_at": "2026-11-01T21:38:13Z",
+      "updated_at": "2026-11-01T21:39:04Z",
+      "need_score": 12.8,
+      "feasibility": "high",
+      "feasibility_reason": "The issue provides a clear description of a false positive in a path-matching regex or parsing logic within the Codex observability plugin, complete with reproduction steps and examples.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "under_1h",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "The Codex observability plugin falsely identifies skill invocations and adds skill tags/renames tool observations when skill paths are merely referenced in commands (such as 'git add -- .agents/skills/...').",
+      "root_cause_hypothesis": "The skill detection logic in `plugins/tracing/src/skills.ts` uses broad regex pattern matching across command strings without verifying the command context, treating non-executing and non-reading commands (such as git staging or path arguments) as active skill invocations.",
+      "suggested_approach": "Refine `skillsForToolCall` and the path matching logic in `plugins/tracing/src/skills.ts` to inspect the command context or exclude non-invoking command patterns (e.g., git staging/status/diff operations, file management), ensuring only actual reads or script executions attribute the skill.",
+      "likely_areas": [
+        "plugins/tracing/src/skills.ts",
+        "plugins/tracing/test/skills.test.ts"
+      ],
+      "prerequisites": [
+        "Node.js and package manager (pnpm/npm) installed",
+        "Familiarity with the Codex observability plugin architecture and tool observation naming/tagging"
+      ],
+      "implementation_steps": [
+        "Inspect `plugins/tracing/src/skills.ts` to understand how `skillsForToolCall` extracts skill names from command and code strings using regexes.",
+        "Identify command patterns that do not represent skill usage (such as git subcommands like `add`, `rm`, `checkout`, `status`, `diff` targeting skill directories) or analyze how commands actually invoke skills (e.g. direct execution, python/bash runners, cat/read commands).",
+        "Update regexes or introduce command parsing/filtering logic in `skills.ts` to prevent false positive matches on commands merely staging, moving, or committing skill files.",
+        "Ensure `toolObservationName` and trace tagging consistently respect skill detection settings and only rename observations when a valid skill invocation occurs.",
+        "Add unit tests in `plugins/tracing/test/skills.test.ts` verifying that commands like `git add -- .agents/skills/...` do not trigger skill detection, while genuine executions and skill file reads continue to be tagged correctly."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-11-02T03:38:42.807841+00:00",
+      "processed_at": "2026-11-02T03:38:42.807841+00:00"
+    },
+    "664": {
+      "repo": "langfuse/langfuse",
+      "number": 664,
+      "title": "feat: OpenAI jsonl exports for more message types",
+      "source_url": "https://github.com/langfuse/langfuse/issues/664",
+      "labels": [
+        "ui",
+        "prio-low"
+      ],
+      "reactions": 0,
+      "created_at": "2023-12-11T22:43:26Z",
+      "updated_at": "2026-10-31T19:36:24Z",
+      "need_score": 1.0,
+      "feasibility": "high",
+      "feasibility_reason": "The issue is a straightforward feature request to add a fallback in an OpenAI JSONL export function, pointing directly to the relevant lines in the codebase where Zod validation filters out non-conforming generations.",
+      "self_contained": true,
+      "needs_special_environment": false,
+      "blockers": [],
+      "estimated_effort": "half_day",
+      "worth_solving": true,
+      "flagged_injection": false,
+      "problem_summary": "When exporting generations to JSONL for OpenAI fine-tuning, records that do not strictly match OpenAI chat message schemas validated by Zod are skipped or excluded.",
+      "root_cause_hypothesis": "The generation export logic validates input and output strictly against OpenAI chat completion message schemas using Zod. Generations using legacy prompt/completion schemas, raw strings, or non-OpenAI message structures fail validation and are dropped from the fine-tuning dataset export.",
+      "suggested_approach": "Introduce a fallback transformation in the generation export pipeline: if input and output fail chat message validation, check if they can be represented as user/assistant messages (for instance, converting string/object input into a user message and string/object output into an assistant message, or handling prompt-completion pairs). Ensure the fallback formats still conform to the target OpenAI fine-tuning schema.",
+      "likely_areas": [
+        "src/server/api/routers/generations.ts",
+        "packages/shared/src/server/index.ts",
+        "src/features/generations/export.ts"
+      ],
+      "prerequisites": [
+        "Review OpenAI fine-tuning JSONL format requirements (chat format with messages array vs legacy prompt-completion format).",
+        "Inspect current Zod schema validation and filtering in generations export router."
+      ],
+      "implementation_steps": [
+        "Locate the generation export endpoint and parsing logic in src/server/api/routers/generations.ts (or the modern export utility).",
+        "Inspect the existing Zod parser for OpenAI chat messages.",
+        "Create a fallback helper function that inspects non-conforming inputs and outputs (such as plain strings, prompt/completion objects, or simple key-value structures) and converts them into standard OpenAI chat messages ({ role: 'user', content: ... } and { role: 'assistant', content: ... }).",
+        "In the export pipeline, attempt the strict chat message parse first; if it fails, invoke the fallback transformer and validate the resulting output.",
+        "Ensure items that cannot be safely converted to valid fine-tuning format are cleanly handled or reported without crashing the export.",
+        "Add unit tests covering various generation payloads (plain text, single prompt/completion, non-standard arrays) to verify fallback JSONL formatting."
+      ],
+      "confidence": "high",
+      "first_seen": "2026-11-02T03:40:44.484235+00:00",
+      "processed_at": "2026-11-02T03:40:44.484235+00:00"
     }
   }
 }
