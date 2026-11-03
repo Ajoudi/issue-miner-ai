@@ -1,6 +1,6 @@
 {
   "repo": "duckdb/duckdb",
-  "generated_at": "2026-11-02T03:40:59.366367+00:00",
+  "generated_at": "2026-11-03T04:44:40.511198+00:00",
   "issues": {
     "13069": {
       "repo": "duckdb/duckdb",
@@ -504,7 +504,9 @@
       ],
       "confidence": "high",
       "first_seen": "2026-10-29T04:05:38.275418+00:00",
-      "processed_at": "2026-10-29T04:05:38.275418+00:00"
+      "processed_at": "2026-10-29T04:05:38.275418+00:00",
+      "resolved": true,
+      "resolved_at": "2026-11-03T04:44:20.250446+00:00"
     }
   }
 }
