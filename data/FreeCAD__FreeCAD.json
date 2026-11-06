@@ -1,6 +1,6 @@
 {
   "repo": "FreeCAD/FreeCAD",
-  "generated_at": "2026-11-05T04:39:23.288305+00:00",
+  "generated_at": "2026-11-06T04:28:51.048898+00:00",
   "issues": {
     "24238": {
       "repo": "FreeCAD/FreeCAD",
@@ -201,7 +201,9 @@
       ],
       "confidence": "high",
       "first_seen": "2026-09-01T02:57:55.675679+00:00",
-      "processed_at": "2026-09-01T02:57:55.675679+00:00"
+      "processed_at": "2026-09-01T02:57:55.675679+00:00",
+      "resolved": true,
+      "resolved_at": "2026-11-06T04:27:57.583949+00:00"
     },
     "30833": {
       "repo": "FreeCAD/FreeCAD",
