@@ -1,6 +1,6 @@
 {
   "repo": "langfuse/langfuse",
-  "generated_at": "2026-11-20T05:01:09.449527+00:00",
+  "generated_at": "2026-11-21T04:56:38.654629+00:00",
   "issues": {
     "15280": {
       "repo": "langfuse/langfuse",
@@ -336,7 +336,9 @@
       ],
       "confidence": "medium",
       "first_seen": "2026-10-12T03:29:01.920479+00:00",
-      "processed_at": "2026-10-29T03:44:06.900938+00:00"
+      "processed_at": "2026-10-29T03:44:06.900938+00:00",
+      "resolved": true,
+      "resolved_at": "2026-11-21T04:56:30.057693+00:00"
     },
     "18360": {
       "repo": "langfuse/langfuse",
